@@ -157,6 +157,10 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(call({op:'points',key}).points.length,3);
   g7.sheets['Настройки'].data=g7.sheets['Настройки'].data.filter(r=>r[0]!=='Очки за первое место');
   assert.equal(call({op:'setup',key}).done,true); assert.ok(g7.sheets['Настройки'].data.find(r=>r[0]==='Очки за первое место'),'setup по ключу дописал настройку');
+  assert.equal(call({op:'setting',key,name:'Адрес сайта',value:'https://x.github.io/new/'}).value,'https://x.github.io/new/');
+  call({op:'refresh',key}); assert.match(g7.sheets['Точки'].data[1][6],/^https:\/\/x\.github\.io\/new\/\?cp=/,'ссылки QR на новом адресе');
+  assert.match(call({op:'setting',key,name:'Ключ администратора',value:'x'}).error,/Нельзя/);
+  assert.match(call({op:'setting',key,name:'Что-то',value:'x'}).error,/Нельзя/);
   keyRow[1]=''; assert.equal(call({op:'points',key:''}).error,'Нет доступа','пустой ключ не открывает');
 }
 

@@ -10,7 +10,7 @@
  * используется, если GitHub недоступен.
  */
 
-var SOURCE_URL = "https://raw.githubusercontent.com/timirsharipov/unpavedrace/main/server/Code.gs";
+var SOURCE_URL = "https://raw.githubusercontent.com/timirsharipov/fgk-closeseason26/main/server/Code.gs";
 var CODE_CACHE_SECONDS = 120;
 var GLOBAL = this;
 var LOADER_INFO = null;

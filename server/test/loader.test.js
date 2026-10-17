@@ -11,7 +11,7 @@ let github = { status: 200, body: code, calls: 0 };
 g.ctx.UrlFetchApp = { fetch: (url) => {
   github.calls++;
   if (github.down) throw new Error('network');
-  assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/timirsharipov\/unpavedrace\/main\/server\/Code\.gs\?t=\d+$/);
+  assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/timirsharipov\/fgk-closeseason26\/main\/server\/Code\.gs\?t=\d+$/);
   return { getResponseCode: () => github.status, getContentText: () => github.body };
 } };
 const vm = require('vm');

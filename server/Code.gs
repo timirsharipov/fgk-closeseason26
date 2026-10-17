@@ -31,7 +31,7 @@ var DEFAULT_SETTINGS = [
   ["Старт", "2026-10-30T20:00:00+03:00"],
   ["Конец", "2026-10-31T00:00:00+03:00"], // после этого сканы не принимаются
   ["Радиус, м", "150"],
-  ["Адрес сайта", "https://timirsharipov.github.io/unpavedrace/"],
+  ["Адрес сайта", "https://timirsharipov.github.io/fgk-closeseason26/"],
   ["Цена, ₽", "300"],
   ["Цена после повышения, ₽", "600"],
   ["Повышение цены", "2026-10-26T00:00:00+03:00"],
@@ -305,12 +305,32 @@ function admin_(body) {
   }
   if (body.op === "version") return { loaded: typeof LOADER_INFO !== "undefined" ? LOADER_INFO : null };
   if (body.op === "coords") return setCoords_(body);
+  if (body.op === "setting") return setSetting_(body);
   // первичная настройка удалённо: дописать недостающие настройки и колонки (данные не трогает)
   if (body.op === "setup") {
     withLock_(setup);
     return { done: true };
   }
   throw userError_("Неизвестная команда");
+}
+
+// Поменять значение на листе «Настройки» (только известные настройки, кроме ключа)
+function setSetting_(body) {
+  var name = String(body.name || "").trim();
+  var known = DEFAULT_SETTINGS.map(function (r) { return r[0]; });
+  if (known.indexOf(name) < 0 || name === "Ключ администратора") throw userError_("Нельзя менять эту настройку");
+  return withLock_(function () {
+    var sh = sheet_("settings");
+    var rows = sh.getRange(1, 1, sh.getLastRow(), 1).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i][0]).trim() === name) {
+        sh.getRange(i + 1, 2).setNumberFormat("@").setValue(String(body.value));
+        CacheService.getScriptCache().remove("public");
+        return { name: name, value: String(body.value) };
+      }
+    }
+    throw userError_("Нет такой строки в «Настройках», запустите setup");
+  });
 }
 
 // Расклейка: записать точке координаты по месту, где стоит организатор
