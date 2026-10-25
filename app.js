@@ -614,8 +614,18 @@
     field.querySelector(".field__error").textContent = message || "";
   }
 
+  // ник для сообщения к переводу - прямо рядом с номером, где люди и платят
+  function showFormNick() {
+    const nick = cleanNick(form.telegram.value);
+    const btn = $("form-nick");
+    btn.hidden = !nick;
+    btn.textContent = "@" + nick;
+    btn.dataset.copy = "@" + nick;
+  }
+
   form.addEventListener("input", (e) => {
     if (e.target.name) setError(e.target.name, "");
+    if (e.target.name === "telegram") showFormNick();
     $("form-status").textContent = "";
   });
 
@@ -660,6 +670,7 @@
   $("again").addEventListener("click", () => {
     form.reset();
     genderHint.hidden = true;
+    showFormNick();
     done.hidden = true;
     form.hidden = false;
     form.telegram.focus();

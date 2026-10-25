@@ -223,6 +223,7 @@ h1, h2, h3 { margin: 0; }
 .field__hint { margin: -4px 0 10px; color: var(--muted); font-size: 14px; }
 .field__hint--pay { line-height: 1.7; }
 .field__hint--pay .copy { padding: 2px 8px; }
+.pay-nick-note { color: var(--ink); }
 .field__input {
   display: flex; align-items: center;
   border: 1.5px solid var(--line);
