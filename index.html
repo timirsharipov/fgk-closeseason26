@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FGK CloseSeason 26</title>
-  <meta name="description" content="Закрытие сезона FGK 30 октября: аллейкат по QR-точкам со стартом в 20:00, голдспринт и Halloween bass_u x werk.">
+  <meta name="description" content="Закрытие сезона FGK 30 октября: аллейкат по точкам города со стартом в 20:00, голдспринт и Halloween bass_u x werk.">
   <meta name="theme-color" content="#0d0b0a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Unbounded:wght@500;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610251231">
+  <link rel="stylesheet" href="style.css?v=202610281500">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
   <div class="testbar" id="testbar" hidden>
-    Тестовый режим: сканы не идут в зачёт
+    Тестовый режим: отметки не идут в зачёт
     <button type="button" id="test-exit">выйти</button>
   </div>
 
@@ -52,7 +52,7 @@
             <span class="route__num">01</span>
             <div>
               <h2>Аллейкат <span class="tag tag--acid" data-start="time">20:00</span></h2>
-              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в <span data-start="time">20:00</span>. Точки берёшь в любом порядке и сканируешь код на месте. <b>На каждой точке первый получает больше всего очков, второй меньше, и так далее.</b> Побеждает тот, у кого больше очков в сумме. Некоторые точки ценнее, очки за них умножаются. Финиш в верке отмечаешь последним: после него точки не засчитываются. Сканы засчитываются по нику из регистрации. <strong>Шлем обязателен.</strong></p>
+              <p>Адреса всех точек появятся здесь в <span data-start="time">20:00</span>. Точки берёшь в любом порядке и отмечаешься на месте прямо на сайте, он проверит геолокацию. <b>На каждой точке первый получает больше всего очков, второй меньше, и так далее.</b> Побеждает тот, у кого больше очков в сумме. Некоторые точки ценнее, очки за них умножаются. Финиш в верке отмечаешь последним: после него точки не засчитываются. Отметки засчитываются по нику из регистрации. <strong>Шлем обязателен.</strong></p>
             </div>
           </li>
           <li class="route__step">
@@ -168,10 +168,10 @@
         <p class="live__sub" id="live-sub">Регистрация закрыта</p>
       </section>
 
-      <!-- гость: точки видны, но сканы не засчитываются -->
+      <!-- гость: точки видны, но отметки не засчитываются -->
       <section class="join" id="race-join">
         <h2>Участвуешь в гонке?</h2>
-        <p>Войди ником из регистрации, тогда сканы будут засчитываться и ты попадёшь в топ.</p>
+        <p>Войди ником из регистрации, тогда отметки будут засчитываться и ты попадёшь в топ.</p>
         <form class="join__form" id="login-form" novalidate>
           <div class="field__input field__input--prefixed">
             <span class="field__prefix" aria-hidden="true">@</span>
@@ -195,9 +195,9 @@
           <details class="howto">
             <summary>Как это работает</summary>
             <ol>
-              <li>Точки берёшь в любом порядке. Нажми на точку: там фото, описание и фото места, где висит QR-код.</li>
-              <li>Сканируешь его камерой телефона, откроется этот сайт.</li>
-              <li>Разрешаешь геолокацию: скан засчитывается, только если ты рядом с точкой.</li>
+              <li>Точки берёшь в любом порядке. Нажми на точку: там фото, описание и карта.</li>
+              <li>Приехал, жмёшь «Отметиться здесь» и разрешаешь геолокацию: точка засчитывается, только если ты рядом с ней.</li>
+              <li>Если гео глючит или уводит за город, отправь фото с точки. Организаторы проверят и засчитают его временем отправки.</li>
               <li>Кто первым приехал на точку, получает больше всего очков, каждый следующий на 1 меньше. Ценность точки (×2) умножает очки.</li>
               <li>Побеждает тот, у кого больше очков. При равенстве выше тот, кто набрал их раньше. Кто где был и топ откроются после конца аллейката.</li>
               <li>Финиш в верке отмечаешь последним: после него точки не засчитываются.</li>
@@ -213,7 +213,6 @@
     </div>
   </main>
 
-  <!-- ===== результат скана QR ===== -->
   <!-- ===== страница точки ===== -->
   <div class="sheet sheet--cp" id="cp-sheet" hidden>
     <div class="sheet__card cpd" role="dialog" aria-modal="true" aria-label="Точка" tabindex="-1">
@@ -222,6 +221,8 @@
     </div>
   </div>
 
+  <!-- ===== результат отметки ===== -->
+  <input type="file" id="photo-input" accept="image/*" capture="environment" hidden>
   <div class="sheet" id="scan-sheet" hidden>
     <div class="sheet__card" role="dialog" aria-modal="true" aria-labelledby="scan-title" tabindex="-1">
       <p class="sheet__step" id="scan-step">Проверяем геолокацию…</p>
@@ -229,6 +230,7 @@
       <h2 id="scan-title">Точка</h2>
       <p id="scan-text"></p>
       <button type="button" class="submit submit--small" id="scan-close">К точкам</button>
+      <button type="button" class="link-btn sheet__extra" id="scan-photo" hidden>Отправить фото с точки</button>
       <button type="button" class="link-btn sheet__extra" id="scan-extra" hidden>Записать сюда координаты точки</button>
     </div>
   </div>
@@ -240,9 +242,9 @@
     <button type="button" data-demo="pay">Оплата</button>
     <button type="button" data-demo="guest">Старт · без входа</button>
     <button type="button" data-demo="racer">Старт · участник</button>
-    <button type="button" data-demo="scan-ok">Скан ✓</button>
-    <button type="button" data-demo="scan-far">Скан ✗</button>
-    <button type="button" data-demo="scan-guest">Скан без входа</button>
+    <button type="button" data-demo="scan-ok">Отметка ✓</button>
+    <button type="button" data-demo="scan-far">Отметка ✗</button>
+    <button type="button" data-demo="scan-guest">Отметка без входа</button>
     <button type="button" data-demo="results">Итоги</button>
   </nav>
 
@@ -250,8 +252,8 @@
     <p>FGK CloseSeason 26 · 18+</p>
   </footer>
 
-  <script src="config.js?v=202610251230"></script>
-  <script src="data.js?v=202610251230"></script>
-  <script src="app.js?v=202610251230"></script>
+  <script src="config.js?v=202610281500"></script>
+  <script src="data.js?v=202610281500"></script>
+  <script src="app.js?v=202610281500"></script>
 </body>
 </html>

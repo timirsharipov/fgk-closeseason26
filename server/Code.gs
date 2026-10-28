@@ -5,8 +5,10 @@
  *   «Настройки»   - время старта, радиус засчёта, адрес сайта
  *   «Регистрации» - ники участников, сумма и галочка «Оплачено»
  *                   (колонка «Допуск»: «нет» - не пускать в гонку)
- *   «Точки»       - точки маршрута, их ценность, секреты и ссылки для QR
- *   «Сканы»       - журнал всех попыток скана со статусом
+ *   «Точки»       - точки маршрута, их ценность, описание и фото
+ *   «Сканы»       - журнал всех отметок со статусом. Отметка по фото приходит
+ *                   со статусом «проверить фото»: посмотрели фото, поставили «ok»
+ *                   (засчитается временем отправки) или «отклонено»
  *
  * Если таблица - это таблица ответов Google Формы, ответы формы автоматически
  * переносятся в «Регистрации» (лист формы остаётся как есть).
@@ -24,7 +26,7 @@ var SHEETS = {
 var HEADERS = {
   regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
   points: ["ID", "Название", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото", "Фото для сайта", "Фото QR", "Фото QR для сайта"],
-  scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус"],
+  scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус", "Фото"],
 };
 
 var DEFAULT_SETTINGS = [
@@ -49,6 +51,8 @@ var P = {
   photoQr: "Фото QR", photoQrSite: "Фото QR для сайта", // где висит QR
 };
 var PHOTO_FOLDER = "FGK CloseSeason 26, фото точек";
+var CHECKIN_FOLDER = "FGK CloseSeason 26, фото с отметок"; // фото гонщиков, когда гео не сработало
+var PENDING = "проверить фото";
 
 var COL_PAID = 6; // колонка «Оплачено» на листе «Регистрации»
 var YES = /^(да|yes|1|true|x|✓)$/i;
@@ -75,6 +79,7 @@ function doPost(e) {
     if (body.action === "register") return register_(body);
     if (body.action === "login") return login_(body);
     if (body.action === "scan") return scan_(body);
+    if (body.action === "photo") return photo_(body);
     if (body.action === "admin") return admin_(body);
     throw userError_("Неизвестное действие");
   });
@@ -166,7 +171,13 @@ function me_(raw) {
   mine = mine
     .filter(function (x) { return x.at <= finishAt; }) // после финиша не считается
     .map(function (x) { return [x.cp, x.at]; });
-  return status_(reg, { scans: mine });
+  // фото, которые организаторы ещё не посмотрели
+  var taken = {};
+  mine.forEach(function (x) { taken[x[0]] = true; });
+  var pending = rows_("scans")
+    .filter(function (r) { return r[6] === PENDING && String(r[1]) === nick && !taken[String(r[2])]; })
+    .map(function (r) { return String(r[2]); });
+  return status_(reg, { scans: mine, pending: pending });
 }
 
 function status_(reg, extra) {
@@ -213,30 +224,12 @@ function scan_(body) {
       throw userError_(message);
     };
 
-    if (Date.now() < s.start) fail(null, "рано", "Сканы засчитываются с момента старта");
-    if (Date.now() > s.end) fail(null, "после конца", "Аллейкат закончился, сканы больше не принимаются");
+    var c = checkRider_(s, nick, cpId, fail);
+    if (c.already) return { already: true, cp: cpId, at: c.already.at };
+    var point = c.point;
+    var okScans = c.okScans;
 
-    var reg = nick && findRegistration_(nick);
-    if (!reg) fail(null, "нет регистрации", "Войди ником из регистрации");
-    if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке, напиши организаторам");
-    if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена, покажи перевод организаторам");
-
-    var points = readPoints_();
-    var point = points.filter(function (p) { return p.id === cpId; })[0];
-    if (!point) fail(null, "нет точки", "Такой точки нет, отсканируй код ещё раз");
-    if (!body.k || String(body.k) !== point.secret) fail(point, "неверный код", "QR-код не подошёл, отсканируй код прямо на точке");
-
-    var okScans = readScans_();
-    var already = okScans.filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
-    if (already) return { already: true, cp: cpId, at: already.at };
-
-    // финиш отмечается последним: после него точки не засчитываются
-    var finals = {};
-    points.forEach(function (p) { if (p.final) finals[p.id] = true; });
-    var finished = okScans.some(function (x) { return x.nick === nick && finals[x.cp]; });
-    if (finished) fail(point, "после финиша", "Ты уже отметил финиш, после него точки не засчитываются");
-
-    if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию. Разреши доступ и отсканируй ещё раз");
+    if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию. Разреши доступ и отметься ещё раз");
     if (accuracy > MAX_ACCURACY_M) fail(point, "низкая точность", "Геолокация слишком неточная. Включи GPS и попробуй ещё раз");
 
     var distance = distanceM_({ lat: lat, lng: lng }, point);
@@ -255,14 +248,81 @@ function scan_(body) {
   });
 }
 
+// Общие проверки отметки: время гонки, регистрация, точка, финиш последним.
+// fail(point, статус, сообщение) пишет попытку в журнал и прерывает отметку.
+function checkRider_(s, nick, cpId, fail) {
+  if (Date.now() < s.start) fail(null, "рано", "Отметки засчитываются с момента старта");
+  if (Date.now() > s.end) fail(null, "после конца", "Аллейкат закончился, отметки больше не принимаются");
+
+  var reg = nick && findRegistration_(nick);
+  if (!reg) fail(null, "нет регистрации", "Войди ником из регистрации");
+  if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке, напиши организаторам");
+  if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена, покажи перевод организаторам");
+
+  var points = readPoints_();
+  var point = points.filter(function (p) { return p.id === cpId; })[0];
+  if (!point) fail(null, "нет точки", "Такой точки нет");
+
+  var okScans = readScans_();
+  var already = okScans.filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
+  if (already) return { already: already };
+
+  // финиш отмечается последним: после него точки не засчитываются
+  var finals = {};
+  points.forEach(function (p) { if (p.final) finals[p.id] = true; });
+  var finished = okScans.some(function (x) { return x.nick === nick && finals[x.cp]; });
+  if (finished) fail(point, "после финиша", "Ты уже отметил финиш, после него точки не засчитываются");
+  return { point: point, okScans: okScans };
+}
+
+// Отметка по фото - если геолокация не работает (глушат, уводит за город).
+// Фото ложится на Диск организатора, в «Сканы» - строка «проверить фото» со ссылкой.
+// Организатор смотрит фото и меняет статус на «ok» (засчитается временем отправки) или «отклонено».
+function photo_(body) {
+  var s = settings_();
+  var nick = cleanNick_(body.nick);
+  var cpId = String(body.cp || "").trim();
+  var lat = Number(body.lat);
+  var lng = Number(body.lng);
+  var accuracy = Number(body.accuracy) || 0;
+  var data = String(body.image || "").replace(/^data:image\/[\w+.-]+;base64,/, "");
+  if (!data) throw userError_("Фото не дошло, попробуй ещё раз");
+  if (data.length > 10 * 1024 * 1024) throw userError_("Фото слишком большое");
+  var at = new Date();
+
+  var fail = function (point, status, message) {
+    sheet_("scans").appendRow([at, nick || String(body.nick || ""), cpId, 0, "", "", "фото: " + status, ""]);
+    throw userError_(message);
+  };
+  var c = checkRider_(s, nick, cpId, fail);
+  if (c.already) return { already: true, cp: cpId, at: c.already.at };
+
+  // сохраняем вне блокировки: загрузка на Диск небыстрая
+  var name = Utilities.formatDate(at, "Europe/Moscow", "HH-mm-ss") + " " + nick + " " + cpId + ".jpg";
+  var file = checkinFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), "image/jpeg", name));
+  var hasPos = isFinite(lat) && isFinite(lng) && isFinite(c.point.lat) && isFinite(c.point.lng);
+  var distance = hasPos ? Math.round(distanceM_({ lat: lat, lng: lng }, c.point)) : "";
+
+  withLock_(function () {
+    var sh = sheet_("scans");
+    if (!String(sh.getRange(1, 8).getValue()).trim()) sh.getRange(1, 8).setValue("Фото").setFontWeight("bold");
+    sh.appendRow([at, nick, cpId, 0, distance, accuracy ? Math.round(accuracy) : "", PENDING, file.getUrl()]);
+  });
+  return { pending: true, cp: cpId, at: at.getTime() };
+}
+
+function checkinFolder_() {
+  var it = DriveApp.getFoldersByName(CHECKIN_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(CHECKIN_FOLDER);
+}
+
 /* ================= обслуживание по ключу ================= */
 
 function isAdmin_(s, key) {
   return Boolean(s.adminKey) && String(key || "") === s.adminKey;
 }
 
-// Тестовый скан для разработки и расклейки: проверяет, что QR от этой точки
-// и как далеко телефон от её координат. В «Сканы» - с пометкой «тест», в очки не идёт.
+// Тестовая отметка для разработки и проверки точек: как далеко телефон от координат точки. В «Сканы» - с пометкой «тест», в очки не идёт.
 function testScan_(s, body) {
   if (!isAdmin_(s, body.test)) throw userError_("Тестовый режим: неверный ключ");
   var cpId = String(body.cp || "").trim();
@@ -275,7 +335,6 @@ function testScan_(s, body) {
       distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
   };
   if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
-  if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки: секрет не совпал"); }
   if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
   var hasCoords = isFinite(point.lat) && isFinite(point.lng);
   var distance = hasCoords ? distanceM_({ lat: lat, lng: lng }, point) : null;

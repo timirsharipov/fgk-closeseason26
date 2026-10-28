@@ -495,6 +495,12 @@ h1, h2, h3 { margin: 0; }
 .cpd__head h2 { font: 800 20px/1.15 var(--head); text-transform: uppercase; }
 .cpd__desc { margin: 12px 0 0; color: var(--ink); font-size: 15px; line-height: 1.5; white-space: pre-line; }
 .cpd__map { display: inline-block; margin-top: 12px; color: var(--orange); font-weight: 800; text-decoration: none; }
+.cp__wait { color: var(--orange); font-weight: 800; }
+.cpd__checkin { margin-top: 18px; }
+.cpd__checkin .submit { width: 100%; }
+.cpd__status { margin: 18px 0 0; color: var(--acid); font-weight: 800; }
+.cpd__status--wait { margin: 0 0 12px; color: var(--orange); font-weight: 600; font-size: 14px; }
+.cpd__photo-btn { display: block; margin: 14px auto 0; color: var(--muted); font-size: 14px; }
 .cpd__sub { margin: 20px 0 8px; font: 800 14px/1 var(--head); text-transform: uppercase; color: var(--muted); }
 .cpd__empty { margin: 0; color: var(--muted); font-size: 14px; }
 .arrivals { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

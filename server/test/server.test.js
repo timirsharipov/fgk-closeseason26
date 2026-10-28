@@ -44,7 +44,6 @@ assert.equal(st.leaderboard,undefined,'во время гонки топ скр�
 const ADMIN=S('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
 const getLB=()=>{cache.clear(); return JSON.parse(ctx.doGet({parameter:{action:'state',test:ADMIN}}).s).leaderboard;};
 assert.deepEqual(getLB(),[]);
-r=post({action:'scan',nick:'bob_1',cp:'c1',k:'wrong',lat:c1[3],lng:c1[4]}); assert.match(r.error,/не подошёл/);
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.01,lng:c1[4],accuracy:10}); assert.equal(r.far,true); 
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.001,lng:c1[4],accuracy:10}); assert.equal(r.ok,true); assert.equal(r.place,undefined,'место не отдаём'); 
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.equal(r.already,true);
@@ -176,9 +175,8 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   let r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.0005,lng:ln,accuracy:8});
   assert.equal(r.ok,true); assert.equal(r.inRadius,true); assert.equal(r.distance,56);
   r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.01,lng:ln}); assert.equal(r.inRadius,false); assert.equal(r.distance,1112);
-  assert.match(post({action:'scan',test:key,cp:'c1',k:'bad',lat:la,lng:ln}).error,/не от этой точки/);
   assert.match(post({action:'scan',test:'wrong',cp:'c1',k:row[5],lat:la,lng:ln}).error,/неверный ключ/);
-  const scans=g8.sheets['Сканы'].data.slice(1); assert.deepEqual(scans.map(x=>x[6]),['тест: ok','тест: далеко','тест: неверный код']);
+  const scans=g8.sheets['Сканы'].data.slice(1); assert.deepEqual(scans.map(x=>x[6]),['тест: ok','тест: далеко']);
   assert.ok(scans.every(x=>x[1]==='(тест)'&&x[3]===0)); assert.deepEqual(get(key).leaderboard,[],'тест в топ не идёт');
   // записать координаты точки по месту
   assert.equal(post({action:'admin',op:'coords',key:'x',id:'c1',lat:1,lng:2}).error,'Нет доступа');
@@ -207,6 +205,22 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard[0].score,50);
   // гонщик видит свои отметки, но не топ; после конца топ открыт всем
   const me=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'rider1'}}).s); assert.deepEqual(me.scans.map(x=>x[0]),['fin']);
+  // отметка по фото: без QR и геолокации, ждёт проверки организатором
+  post({action:'register',telegram:'jammed',gender:'М',payment:'x'}); // поздняя регистрация не пройдёт - старт уже был
+  st[1]=new Date(Date.now()+3600e3).toISOString(); post({action:'register',telegram:'jammed',gender:'М',payment:'x'}); st[1]=new Date(Date.now()-1000).toISOString();
+  assert.match(post({action:'photo',nick:'jammed',cp:'c1'}).error,/не дошло/);
+  assert.match(post({action:'photo',nick:'ghost',cp:'c1',image:'aGVsbG8='}).error,/Войди/);
+  r=post({action:'photo',nick:'jammed',cp:'c1',image:'data:image/jpeg;base64,aGVsbG8=',lat:0,lng:0,accuracy:20}); assert.equal(r.ok,true); assert.equal(r.pending,true);
+  const prow=S9('Сканы').data.at(-1); assert.equal(prow[6],'проверить фото'); assert.match(prow[7],/drive\.google\.com/); assert.equal(S9('Сканы').data[0][7],'Фото');
+  assert.equal(String(g9.drive.files.at(-1).bytes),'hello');
+  let jm=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'jammed'}}).s); assert.deepEqual(jm.pending,['c1']); assert.deepEqual(jm.scans,[]);
+  g9.cache.clear(); assert.ok(!JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard.some(x=>x.nick==='jammed'),'до проверки не в топе');
+  prow[6]='ok'; g9.cache.clear();
+  jm=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'jammed'}}).s); assert.deepEqual(jm.pending,[]); assert.deepEqual(jm.scans.map(x=>x[0]),['c1']);
+  assert.ok(JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard.some(x=>x.nick==='jammed'),'после «ok» в топе');
+  assert.equal(post({action:'photo',nick:'jammed',cp:'c1',image:'aGVsbG8='}).already,true);
+  // обычная отметка теперь без секрета QR
+  const c2=row('c2'); r=post({action:'scan',nick:'jammed',cp:'c2',lat:at(c2)[0],lng:at(c2)[1],accuracy:5}); assert.equal(r.ok,true);
   assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard,undefined);
   S9('Настройки').data.find(r=>r[0]==='Конец')[1]=new Date(Date.now()-1).toISOString(); g9.cache.clear();
   const after=JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s); assert.equal(after.results,true); assert.equal(after.leaderboard[0].nick,'rider1');

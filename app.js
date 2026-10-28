@@ -7,8 +7,8 @@
   const params = new URLSearchParams(location.search);
   const DEMO = !CFG.apiUrl || params.has("demo");
 
-  // Тестовый режим (разработка и расклейка QR): включается ссылкой ?test=<ключ администратора>,
-  // телефон его запоминает; ?test=off - выключить. Тестовые сканы не идут в зачёт.
+  // Тестовый режим (разработка и проверка точек): включается ссылкой ?test=<ключ администратора>,
+  // телефон его запоминает; ?test=off - выключить. Тестовые отметки не идут в зачёт.
   const testKey = (function () {
     const fromUrl = params.get("test");
     try {
@@ -29,8 +29,10 @@
   let state = null; // { now, start, radius, open, checkpoints, leaderboard }
   let clockOffset = 0; // серверное время − локальное
   let user = null; // { nick }
-  let pendingScan = null; // скан, сделанный до входа
+  let pendingScan = null; // отметка, начатая до входа
   let myScans = []; // свои отметки: [[id точки, время]] — топ во время гонки скрыт
+  let myPending = []; // точки, отправленные фото и ждущие проверки организатором
+  let lastPos = null; // последняя геолокация - уходит вместе с фото, организатору для сверки
   let payment = null; // { amount, paid } - статус оплаты участника
 
   const now = () => Date.now() + clockOffset;
@@ -75,6 +77,7 @@
     register: (v) => remote.call("register", v),
     login: (nick) => remote.call("login", { nick }),
     scan: (v) => remote.call("scan", v),
+    photo: (v) => remote.call("photo", v),
     admin: (op, v) => remote.call("admin", Object.assign({ op, key: testKey }, v)),
   };
 
@@ -87,7 +90,8 @@
     const at = (m) => START + m * MIN;
     const byId = Object.fromEntries(R.checkpoints.map((c) => [c.id, c]));
     let mode = params.get("demo") || "reg";
-    let mine = []; // сканы демо-участника
+    let mine = []; // отметки демо-участника
+    let pending = []; // фото на проверке
     const regs = { [R.demoUser.nick]: { amount: 300, paid: true } };
     const price = (g) => (g === "Ж" ? 0 : Date.now() < Date.parse("2026-10-26T00:00:00+03:00") ? 300 : 600);
 
@@ -115,6 +119,7 @@
       setMode(m) {
         mode = m;
         mine = m === "reg" || m === "pay" ? [] : R.demoUser.scans.map(([id, m2]) => [id, at(m2)]);
+        pending = m === "racer" ? ["c5"] : [];
       },
       fakePosition(cpId, far) {
         const c = byId[cpId];
@@ -136,7 +141,7 @@
       },
       async me(nick) {
         const n = cleanNick(nick);
-        return { ok: true, nick: n, ...(regs[n] || { amount: price("М"), paid: false }), scans: n === R.demoUser.nick ? mine : [] };
+        return { ok: true, nick: n, ...(regs[n] || { amount: price("М"), paid: false }), scans: n === R.demoUser.nick ? mine : [], pending: n === R.demoUser.nick ? pending : [] };
       },
       async login(nick) {
         const n = cleanNick(nick);
@@ -157,6 +162,10 @@
         const place = board().reduce((n, r) => n + r.scans.filter((x) => x[0] === v.cp).length, 0) + 1;
         mine.push([v.cp, t]);
         return { ok: true, cp: v.cp, value: placePts(c.value, place), place, distance: Math.round(d), at: t };
+      },
+      async photo(v) {
+        if (!pending.includes(v.cp)) pending.push(v.cp);
+        return { ok: true, pending: true, cp: v.cp, at: at(75) };
       },
     };
   })();
@@ -276,7 +285,7 @@
     $("live-label").textContent = ended ? "Аллейкат завершён" : "Аллейкат идёт";
     $("live-sub").textContent = ended
       ? "Итоги ниже, во вкладке «Топ»"
-      : state.end ? "До конца. В " + fmtTime(state.end) + " сканы перестанут засчитываться" : "Регистрация закрыта";
+      : state.end ? "До конца. В " + fmtTime(state.end) + " отметки перестанут засчитываться" : "Регистрация закрыта";
     $("race-join").hidden = Boolean(user);
     $("me").hidden = !user;
     if (user) renderMe();
@@ -329,7 +338,8 @@
           '<p class="cp__meta">' +
             (resultsOpen()
               ? (n ? "приехали: " + n : "пока никого") + (t ? ' · <b class="cp__mine">ты ' + (t[1] ? t[1] + "-й" : "✓") + "</b>" : "")
-              : t ? '<b class="cp__mine">✓ взята в ' + fmtTime(t[0]) + "</b>" : user ? "не взята" : "") + "</p>" +
+              : t ? '<b class="cp__mine">✓ взята в ' + fmtTime(t[0]) + "</b>"
+              : myPending.includes(c.id) ? '<b class="cp__wait">фото на проверке</b>' : user ? "не взята" : "") + "</p>" +
           "</div>" +
           (c.photo
             ? '<img class="cp__thumb" src="' + esc(preview(c.photo, 160)) + '" alt="" loading="lazy" onerror="this.remove()">'
@@ -362,11 +372,7 @@
       (c.final ? '<p class="cpd__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
       (c.description ? '<p class="cpd__desc">' + esc(c.description) + "</p>" : "") +
       '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
-      (c.qrPhoto
-        ? '<h3 class="cpd__sub">Где висит QR</h3>' +
-          '<a class="cpd__photo" href="' + esc(c.qrPhoto) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
-          '<img src="' + esc(preview(c.qrPhoto)) + '" alt="Где висит QR: ' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
-        : "") +
+      checkinBlock(c) +
       (!resultsOpen() ? "" :
       '<h3 class="cpd__sub">Уже приехали' + (who.length ? " · " + who.length : "") + "</h3>" +
       (who.length
@@ -376,6 +382,19 @@
             '<span class="arrivals__nick">@' + esc(x.nick) + "</span>" +
             '<span class="arrivals__time">' + fmtTime(x.at) + "</span></li>").join("") + "</ol>"
         : '<p class="cpd__empty">Пока никого.</p>'));
+  }
+
+  // кнопка «Отметиться» на странице точки
+  function checkinBlock(c) {
+    if (raceEnded() && !testKey) return "";
+    const mine = user && myRow().scans.find((x) => x[0] === c.id);
+    if (mine) return '<p class="cpd__status">✓ Точка взята в ' + fmtTime(mine[1]) + "</p>";
+    const wait = myPending.includes(c.id);
+    return '<div class="cpd__checkin">' +
+      (wait ? '<p class="cpd__status cpd__status--wait">Фото на проверке у организаторов. Засчитается временем отправки.</p>' : "") +
+      '<button type="button" class="submit" data-checkin="' + esc(c.id) + '">' + (testKey ? "Проверить гео (тест)" : "Отметиться здесь") + "</button>" +
+      (testKey ? "" : '<button type="button" class="link-btn cpd__photo-btn" data-photo="' + esc(c.id) + '">Гео глючит? Отправь фото с точки</button>') +
+      "</div>";
   }
 
   function openCpSheet(id) {
@@ -399,6 +418,13 @@
     if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCpSheet(li.dataset.cp); }
   });
   $("cp-sheet-close").addEventListener("click", closeCpSheet);
+  $("cp-sheet-body").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-checkin],[data-photo]");
+    if (!b) return;
+    closeCpSheet();
+    if (b.dataset.checkin) scan(b.dataset.checkin);
+    else pickPhoto(b.dataset.photo);
+  });
   $("cp-sheet").addEventListener("click", (e) => { if (e.target === $("cp-sheet")) closeCpSheet(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && openCp) closeCpSheet(); });
 
@@ -406,7 +432,7 @@
   function renderBoard() {
     const board = state.leaderboard;
     if (!board.length) {
-      $("board").innerHTML = '<li class="board__empty">Пока никто не отсканировал ни одной точки</li>';
+      $("board").innerHTML = '<li class="board__empty">Пока никто не отметил ни одной точки</li>';
       return;
     }
     $("board").innerHTML = board
@@ -467,11 +493,11 @@
     })
   );
 
-  /* ================= скан QR ================= */
-  // QR-код на точке - ссылка вида  https://сайт/?cp=<id>&k=<секрет>.
-  // Камера телефона открывает сайт, берём геолокацию, сервер проверяет секрет и расстояние.
+  /* ================= отметка на точке ================= */
+  // Гонщик жмёт «Отметиться» на странице точки, сайт берёт геолокацию, сервер проверяет расстояние.
+  // Если гео глушат или уводит за город - можно отправить фото с точки, его проверят организаторы.
 
-  function showSheet(kind, title, text, step, icon, action) {
+  function showSheet(kind, title, text, step, icon, action, photoCp) {
     const sheet = $("scan-sheet");
     sheet.hidden = false;
     sheet.dataset.state = kind;
@@ -481,6 +507,8 @@
     $("scan-text").innerHTML = text;
     $("scan-close").textContent = action || "К точкам";
     $("scan-extra").hidden = true;
+    $("scan-photo").hidden = !photoCp;
+    $("scan-photo").dataset.cp = photoCp || "";
     sheet.querySelector(".sheet__card").focus();
   }
 
@@ -488,7 +516,7 @@
 
   let testPos = null; // где стоял организатор при последнем тестовом скане
 
-  async function testScan(cp, k) {
+  async function testScan(cp) {
     const name = cpName(cp);
     showSheet("wait", name, "Определяем, где ты стоишь…", "Тест · геолокация", "📍");
     try {
@@ -498,17 +526,17 @@
     }
     let res;
     try {
-      res = await api.scan({ test: testKey, cp, k, lat: testPos.lat, lng: testPos.lng, accuracy: testPos.accuracy });
+      res = await api.scan({ test: testKey, cp, lat: testPos.lat, lng: testPos.lng, accuracy: testPos.accuracy });
     } catch (err) {
       return showSheet("far", name, "Нет связи с сервером.", "Тест · ошибка сети", "✗");
     }
-    if (!res.ok) return showSheet("far", name, esc(res.error), "Тест · QR не подошёл", "✗");
+    if (!res.ok) return showSheet("far", name, esc(res.error), "Тест · ошибка", "✗");
     const gps = "Точность GPS ±" + res.accuracy + " м.";
     let text;
-    if (!res.hasCoords) text = "QR от этой точки ✓<br>У точки в таблице нет координат.";
-    else if (res.inRadius) text = "QR от этой точки ✓<br>До координат из таблицы <b>" + fmtDistance(res.distance) + "</b>, скан засчитается.";
-    else text = "QR от этой точки ✓, но до её координат в таблице <b>" + fmtDistance(res.distance) +
-      "</b>, гонщику скан <b>не засчитается</b> (радиус " + res.radius + " м).";
+    if (!res.hasCoords) text = "У точки в таблице нет координат.";
+    else if (res.inRadius) text = "До координат из таблицы <b>" + fmtDistance(res.distance) + "</b>, гонщику отметка засчитается.";
+    else text = "До координат точки в таблице <b>" + fmtDistance(res.distance) +
+      "</b>, гонщику отметка <b>не засчитается</b> (радиус " + res.radius + " м).";
     showSheet(res.inRadius ? "ok" : "far", res.name || name, text + "<br><small>" + gps + "</small>",
       "Тест · " + cp, res.inRadius ? "✓" : "!", "Готово");
     const extra = $("scan-extra");
@@ -538,19 +566,19 @@
       if (!navigator.geolocation) return reject(new Error("Браузер не даёт геолокацию. Открой ссылку в Chrome или Safari."));
       navigator.geolocation.getCurrentPosition(
         (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-        () => reject(new Error("Без геолокации точку не засчитать. Разреши доступ в настройках браузера и отсканируй код ещё раз.")),
+        () => reject(new Error("Не получили геолокацию. Разреши доступ в настройках браузера и попробуй ещё раз, или отправь фото с точки.")),
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     });
   }
 
-  async function scan(cp, k, fakePosition) {
-    if (testKey) return testScan(cp, k);
-    if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, сканы больше не принимаются.", "Финиш гонки", "⏱");
-    if (!raceOn()) return showSheet("far", "Ещё рано", "Сканы засчитываются с момента старта.", "До старта", "⏳");
+  async function scan(cp, fakePosition) {
+    if (testKey) return testScan(cp);
+    if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, отметки больше не принимаются.", "Финиш гонки", "⏱");
+    if (!raceOn()) return showSheet("far", "Ещё рано", "Отметки засчитываются с момента старта.", "До старта", "⏳");
     const name = cpName(cp);
     if (!user) {
-      pendingScan = [cp, k, fakePosition];
+      pendingScan = [cp, fakePosition];
       return showSheet("far", name, "Войди ником из регистрации, и точка засчитается сразу после входа.", "Нужен вход", "@", "Войти");
     }
     pendingScan = null;
@@ -559,24 +587,26 @@
     let pos;
     try {
       pos = fakePosition || (await getPosition());
+      lastPos = pos;
     } catch (err) {
-      return showSheet("far", name, err.message, "Нет геолокации", "✗");
+      return showSheet("far", name, err.message, "Нет геолокации", "✗", null, cp);
     }
 
-    showSheet("wait", name, "Отправляем скан…", "Проверяем геолокацию…", "📍");
+    showSheet("wait", name, "Отмечаем точку…", "Проверяем геолокацию…", "📍");
     let res;
     try {
-      res = await api.scan({ nick: user.nick, cp, k, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
+      res = await api.scan({ nick: user.nick, cp, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
     } catch (err) {
-      return showSheet("far", name, "Нет связи с сервером. Проверь интернет и отсканируй код ещё раз.", "Ошибка сети", "✗");
+      return showSheet("far", name, "Нет связи с сервером. Проверь интернет и попробуй ещё раз.", "Ошибка сети", "✗");
     }
 
     if (res.far) {
       return showSheet("far", name,
-        "Ты в <b>" + fmtDistance(res.distance) + "</b> от точки. Скан засчитывается в радиусе " + res.radius + " м. Подъедь ближе и отсканируй ещё раз.",
-        "Слишком далеко", "✗");
+        "Телефон показывает, что ты в <b>" + fmtDistance(res.distance) + "</b> от точки, а засчитывается в радиусе " + res.radius +
+        " м. Подъедь ближе и попробуй ещё раз. Если ты на месте, а гео врёт, отправь фото с точки.",
+        "Слишком далеко", "✗", null, cp);
     }
-    if (!res.ok) return showSheet("far", name, esc(res.error), "Не засчитано", "✗");
+    if (!res.ok) return showSheet("far", name, esc(res.error), "Не засчитано", "✗", null, /геолокац/i.test(res.error || "") ? cp : null);
     if (res.already) return showSheet("ok", name, "Эта точка у тебя уже есть.", "Взята в " + fmtTime(res.at), "✓");
 
     await refresh();
@@ -589,15 +619,73 @@
 
   $("scan-close").addEventListener("click", () => {
     $("scan-sheet").hidden = true;
-    if (pendingScan && !user) {
+    if (!user && $("scan-close").textContent === "Войти") {
       $("race-join").scrollIntoView({ behavior: "smooth", block: "center" });
       $("login-nick").focus({ preventScroll: true });
     }
-    if (params.has("cp")) {
-      params.delete("cp");
-      params.delete("k");
-      history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params : ""));
+  });
+
+  /* ---------- отметка по фото ---------- */
+
+  let photoCp = null;
+
+  function pickPhoto(cp) {
+    if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, отметки больше не принимаются.", "Финиш гонки", "⏱");
+    if (!raceOn()) return showSheet("far", "Ещё рано", "Отметки засчитываются с момента старта.", "До старта", "⏳");
+    if (!user) {
+      pendingScan = null;
+      return showSheet("far", cpName(cp), "Сначала войди ником из регистрации, потом отправь фото.", "Нужен вход", "@", "Войти");
     }
+    photoCp = cp;
+    $("photo-input").value = "";
+    $("photo-input").click(); // откроет камеру
+  }
+
+  $("scan-photo").addEventListener("click", (e) => {
+    $("scan-sheet").hidden = true;
+    pickPhoto(e.currentTarget.dataset.cp);
+  });
+
+  // ужимаем до 1600 px по длинной стороне: так фото уходит быстро даже на слабом интернете
+  function shrinkPhoto(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.naturalWidth * k);
+        canvas.height = Math.round(img.naturalHeight * k);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Не получилось открыть фото")); };
+      img.src = url;
+    });
+  }
+
+  $("photo-input").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    const cp = photoCp;
+    if (!file || !cp) return;
+    const name = cpName(cp);
+    showSheet("wait", name, "Отправляем фото…", "Отметка по фото", "📸");
+    let res;
+    try {
+      const image = await shrinkPhoto(file);
+      const pos = lastPos || {};
+      res = await api.photo({ nick: user.nick, cp, image, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
+    } catch (err) {
+      return showSheet("far", name, "Фото не ушло. Проверь интернет и отправь ещё раз.", "Ошибка сети", "✗", null, cp);
+    }
+    if (!res.ok) return showSheet("far", name, esc(res.error), "Не отправлено", "✗");
+    if (res.already) return showSheet("ok", name, "Эта точка у тебя уже есть.", "Взята в " + fmtTime(res.at), "✓");
+    await loadMyStatus();
+    render();
+    showSheet("ok", name,
+      "Организаторы посмотрят фото и засчитают точку временем отправки. Можно ехать дальше.",
+      "Фото отправлено · " + fmtTime(res.at), "📸");
   });
 
   /* ================= регистрация ================= */
@@ -710,6 +798,7 @@
       if (!res.ok) return;
       payment = { amount: res.amount, paid: res.paid };
       if (res.scans) myScans = res.scans;
+      myPending = res.pending || [];
       if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. " + startPhrase() + " здесь появятся точки маршрута.");
       else render();
     } catch (err) { /* статус оплаты не критичен - покажем в следующий раз */ }
@@ -754,9 +843,9 @@
       signIn(res.nick);
       showDone(res, startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
     }
-    if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
-    if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
-    if (mode === "scan-guest") scan("c6", "demo", demo.fakePosition("c6"));
+    if (mode === "scan-ok") scan("c6", demo.fakePosition("c6"));
+    if (mode === "scan-far") scan("c5", demo.fakePosition("c5", true));
+    if (mode === "scan-guest") scan("c6", demo.fakePosition("c6"));
   }
 
   const demoNav = document.querySelector(".demo");
@@ -783,7 +872,8 @@
     if (testKey) $("testbar").hidden = false;
     await refresh();
     loadMyStatus();
-    if (params.has("cp")) scan(params.get("cp"), params.get("k"));
+    // старые ссылки ?cp=… просто открывают точку
+    if (params.has("cp") && raceOn()) openCpSheet(params.get("cp"));
   })();
 
   // во время гонки обновляем топ, до старта - только отсчёт
