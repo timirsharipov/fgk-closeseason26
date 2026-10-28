@@ -17,6 +17,7 @@ class Sheet {
   }
   getDataRange(){return this.getRange(1,1,Math.max(1,this.getLastRow()),Math.max(1,this.getLastColumn()));}
   deleteColumn(c){this.data.forEach(r=>r.splice(c-1,1));}
+  deleteRow(r){this.data.splice(r-1,1);}
   setFrozenRows(){} autoResizeColumns(){} setRowHeights(){} setColumnWidth(){}
 }
 function load(file){

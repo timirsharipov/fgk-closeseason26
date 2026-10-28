@@ -28,7 +28,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Аллейкат")
     .addItem("Первичная настройка", "setup")
-    .addItem("Обновить ссылки, QR и фото точек", "refreshQr")
+    .addItem("Обновить ID и фото точек", "refreshQr")
     .addToUi();
 }
 

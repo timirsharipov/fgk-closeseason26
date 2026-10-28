@@ -9,7 +9,7 @@ window.RACE = {
 
   checkpoints: [
     { id: "c1", name: "Мост", lat: 55.7520, lng: 37.6175, value: 1,
-      description: "Здесь каждую пятницу собирались на покатушки первые пару сезонов.", photo: "assets/hero.webp", qrPhoto: "assets/hero.webp" },
+      description: "Здесь каждую пятницу собирались на покатушки первые пару сезонов.", photo: "assets/hero.webp" },
     { id: "c2", name: "Граффити во дворе", lat: 55.7585, lng: 37.6250, value: 1 },
     { id: "c3", name: "Велопарковка", lat: 55.7460, lng: 37.6050, value: 1 },
     { id: "c4", name: "Смотровая", lat: 55.7650, lng: 37.5980, value: 2 },
