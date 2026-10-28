@@ -183,6 +183,11 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   r=post({action:'admin',op:'coords',key,id:'c1',lat:55.7612345,lng:49.1234567}); assert.equal(r.coords,'55.761235, 49.123457');
   assert.equal(row[2],'55.761235, 49.123457');
   assert.match(post({action:'admin',op:'coords',key,id:'nope',lat:1,lng:2}).error,/нет в таблице/);
+  // фото точки из чата
+  r=post({action:'admin',op:'photo',key,id:'c1',image:'data:image/jpeg;base64,aGVsbG8='}); assert.match(r.photo,/drive\.google\.com\/file\/d\//); assert.match(r.site,/thumbnail\?id=/);
+  g8.cache.clear(); assert.match(get(key).checkpoints.find(c=>c.id==='c1').photo,/thumbnail\?id=/);
+  g8.ctx.refreshQr(); g8.cache.clear(); assert.match(get(key).checkpoints.find(c=>c.id==='c1').photo,/thumbnail\?id=/,'refresh фото не стирает');
+  assert.match(post({action:'admin',op:'photo',key,id:'nope',image:'aGVsbG8='}).error,/нет в таблице/);
 }
 
 // финиш: сканируется последним, после него точки не засчитываются

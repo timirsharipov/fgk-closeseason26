@@ -364,6 +364,7 @@ function admin_(body) {
   }
   if (body.op === "version") return { loaded: typeof LOADER_INFO !== "undefined" ? LOADER_INFO : null };
   if (body.op === "coords") return setCoords_(body);
+  if (body.op === "photo") return setPointPhoto_(body);
   if (body.op === "setting") return setSetting_(body);
   // первичная настройка удалённо: дописать недостающие настройки и колонки (данные не трогает)
   if (body.op === "setup") {
@@ -393,6 +394,26 @@ function setSetting_(body) {
 }
 
 // Расклейка: записать точке координаты по месту, где стоит организатор
+// Фото точки, присланное не через таблицу: кладём на Диск с доступом по ссылке
+// и ставим ссылку в колонку «Фото» (сайт показывает её как картинку).
+function setPointPhoto_(body) {
+  var data = String(body.image || "").replace(/^data:image\/[\w+.-]+;base64,/, "");
+  if (!data) throw userError_("Нет фото");
+  var id = String(body.id || "").trim();
+  var t = pointsTable_();
+  var i = -1;
+  t.rows.forEach(function (r, k) { if (String(t.get(r, "id")).trim() === id) i = k; });
+  if (i < 0 || t.col.photo < 0) throw userError_("Такой точки нет в таблице");
+  var file = photoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), "image/jpeg", "точка " + id + ".jpg"));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var link = "https://drive.google.com/file/d/" + file.getId() + "/view";
+  return withLock_(function () {
+    t.sh.getRange(i + 2, t.col.photo + 1).setValue(link);
+    CacheService.getScriptCache().remove("public");
+    return { id: id, photo: link, site: photoUrl_(link) };
+  });
+}
+
 function setCoords_(body) {
   var lat = Number(body.lat);
   var lng = Number(body.lng);
