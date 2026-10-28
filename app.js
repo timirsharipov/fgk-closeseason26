@@ -393,7 +393,7 @@
     return '<div class="cpd__checkin">' +
       (wait ? '<p class="cpd__status cpd__status--wait">Фото на проверке у организаторов. Засчитается временем отправки.</p>' : "") +
       '<button type="button" class="submit" data-checkin="' + esc(c.id) + '">' + (testKey ? "Проверить гео (тест)" : "Отметиться здесь") + "</button>" +
-      (testKey ? "" : '<button type="button" class="link-btn cpd__photo-btn" data-photo="' + esc(c.id) + '">Гео глючит? Отправь фото с точки</button>') +
+      (testKey ? "" : '<button type="button" class="link-btn cpd__photo-btn" data-photo="' + esc(c.id) + '">Глушилки? Отправь фото с точки</button>') +
       "</div>";
   }
 
