@@ -215,6 +215,10 @@
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+  // ссылки в описании точки - кликабельные
+  const linkify = (text) =>
+    esc(text).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)»]/g, (u) => '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>");
+
   const cpName = (id) => ((state && state.checkpoints) || []).find((c) => c.id === id)?.name || "Точка";
 
   // топ и «кто где был» приходят только организатору и после конца аллейката
@@ -370,7 +374,7 @@
         "<div>" + (c.final ? '<span class="cp__flag">финиш</span>' : "") + "<h2>" + esc(c.name) + "</h2></div>" +
       "</div>" +
       (c.final ? '<p class="cpd__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
-      (c.description ? '<p class="cpd__desc">' + esc(c.description) + "</p>" : "") +
+      (c.description ? '<p class="cpd__desc">' + linkify(c.description) + "</p>" : "") +
       '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
       checkinBlock(c) +
       (!resultsOpen() ? "" :

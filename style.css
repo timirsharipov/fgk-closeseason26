@@ -494,6 +494,7 @@ h1, h2, h3 { margin: 0; }
 .cpd__head { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; padding-right: 40px; }
 .cpd__head h2 { font: 800 20px/1.15 var(--head); text-transform: uppercase; }
 .cpd__desc { margin: 12px 0 0; color: var(--ink); font-size: 15px; line-height: 1.5; white-space: pre-line; }
+.cpd__desc a { color: var(--orange); word-break: break-all; }
 .cpd__map { display: inline-block; margin-top: 12px; color: var(--orange); font-weight: 800; text-decoration: none; }
 .cp__wait { color: var(--orange); font-weight: 800; }
 .cpd__checkin { margin-top: 18px; }
