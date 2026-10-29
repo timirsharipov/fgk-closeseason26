@@ -398,7 +398,8 @@
     const slides = photos.map((url, i) =>
       '<div class="cpd__slide">' +
       '<img src="' + esc(preview(url)) + '" alt="' + esc(c.name) + (photos.length > 1 ? " · " + (i + 1) : "") + '"' +
-      (i ? ' loading="lazy"' : "") + "></div>").join("");
+      (i ? ' loading="lazy"' : "") + ' onload="this.classList.toggle(\'is-tall\', this.naturalHeight > this.naturalWidth * 1.25)">' +
+      "</div>").join("");
     return '<div class="cpd__gallery">' +
       '<div class="cpd__track">' + slides + "</div>" +
       (photos.length > 1 ? '<span class="cpd__count">1 / ' + photos.length + "</span>" : "") +

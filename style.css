@@ -502,8 +502,9 @@ h1, h2, h3 { margin: 0; }
 .cpd__track { display: flex; align-items: center; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .cpd__track::-webkit-scrollbar { display: none; }
 .cpd__slide { flex: 0 0 100%; scroll-snap-align: start; }
-/* фото целиком, без обрезки: карты и скриншоты бывают вытянутыми */
-.cpd__slide img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; }
+/* вытянутые фото чуть подрезаем до 4:5, горизонтальные - как есть */
+.cpd__slide img { display: block; width: 100%; height: auto; aspect-ratio: auto; max-height: 60vh; object-fit: cover; }
+.cpd__slide img.is-tall { aspect-ratio: 4 / 5; }
 .cpd__count {
   position: absolute; right: 10px; bottom: 10px; padding: 4px 10px; border-radius: 99px;
   background: rgba(0, 0, 0, .6); color: #fff; font: 800 13px/1.2 var(--body);
