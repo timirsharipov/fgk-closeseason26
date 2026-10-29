@@ -182,7 +182,8 @@ h1, h2, h3 { margin: 0; }
   border: 1px solid var(--line);
   background: var(--bg-2);
 }
-.price__card:nth-child(2) { opacity: .75; }
+.price__card:nth-child(2) { opacity: .5; }
+.price__value s { text-decoration-thickness: 3px; }
 .price__card--free {
   background: var(--acid); color: #111; border-color: var(--acid);
   transform: rotate(1.5deg);
