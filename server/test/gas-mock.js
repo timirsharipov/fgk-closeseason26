@@ -35,7 +35,7 @@ function load(file){
     DriveApp:{Access:{ANYONE_WITH_LINK:'any'},Permission:{VIEW:'view'},
       getFoldersByName:()=>({hasNext:()=>drive.folder>0,next:()=>folderObj}),createFolder:()=>{drive.folder++;return folderObj;},
       getFileById:id=>({setTrashed:()=>drive.trashed.push(id)})}};
-  const folderObj={createFile:b=>{const id='file'+String(++drive.n).padStart(20,'0');drive.files.push({id,name:b.name,bytes:b.bytes});return {getId:()=>id,getUrl:()=>'https://drive.google.com/file/d/'+id+'/view',setSharing:()=>{}};}};
+  const folderObj={createFile:b=>{const id='file'+String(++drive.n).padStart(20,'0');drive.files.push({id,name:b.name,bytes:b.bytes,type:b.type});return {getId:()=>id,getUrl:()=>'https://drive.google.com/file/d/'+id+'/view',setSharing:()=>{}};}};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', file||'Code.gs'),'utf8'),ctx);
   return {ctx,sheets,cache,props,triggers,drive,alerts,Sheet};

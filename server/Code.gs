@@ -576,7 +576,10 @@ function photoUrl_(v) {
   var url = String(v || "").trim();
   if (!/^https?:\/\//.test(url)) return "";
   var m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{20,})/);
-  return m ? "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w1200" : url;
+  if (!m) return url;
+  // гифка: превью Диска показало бы один кадр - отдаём файл целиком
+  if (/#anim$/.test(url)) return "https://drive.usercontent.google.com/download?id=" + m[1] + "&export=view";
+  return "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w1200";
 }
 
 function readScans_() {

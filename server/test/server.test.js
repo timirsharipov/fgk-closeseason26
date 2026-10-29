@@ -197,6 +197,9 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   r=post({action:'admin',op:'photo',key,id:'c1',image:'aGVsbG8='}); assert.equal(r.count,2,'второе фото добавляется');
   g8.cache.clear(); const ph=get(key).checkpoints.find(c=>c.id==='c1').photos; assert.equal(ph.length,2); assert.ok(ph.every(u=>/thumbnail\?id=/.test(u)));
   assert.match(post({action:'admin',op:'photo',key,id:'nope',image:'aGVsbG8='}).error,/нет в таблице/);
+  r=post({action:'admin',op:'photo',key,id:'c2',type:'webp',image:'aGVsbG8='}); assert.match(r.photo,/\/view#anim$/);
+  assert.match(g8.drive.files.at(-1).name,/\.webp$/); assert.equal(g8.drive.files.at(-1).type,'image/webp');
+  g8.cache.clear(); assert.match(get(key).checkpoints.find(c=>c.id==='c2').photos[0],/^https:\/\/drive\.usercontent\.google\.com\/download\?id=file0+\d+&export=view$/,'гифка целиком');
 }
 
 // финиш: сканируется последним, после него точки не засчитываются
