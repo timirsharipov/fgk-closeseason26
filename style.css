@@ -499,10 +499,11 @@ h1, h2, h3 { margin: 0; }
 }
 .cpd__close:focus-visible { outline: 2px solid var(--acid); }
 .cpd__gallery { position: relative; margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: var(--line); }
-.cpd__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.cpd__track { display: flex; align-items: center; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .cpd__track::-webkit-scrollbar { display: none; }
 .cpd__slide { flex: 0 0 100%; scroll-snap-align: start; }
-.cpd__slide img { display: block; width: 100%; height: min(52vh, 320px); object-fit: cover; }
+/* фото целиком, без обрезки: карты и скриншоты бывают вытянутыми */
+.cpd__slide img { display: block; width: 100%; height: auto; max-height: 60vh; object-fit: contain; }
 .cpd__count {
   position: absolute; right: 10px; bottom: 10px; padding: 4px 10px; border-radius: 99px;
   background: rgba(0, 0, 0, .6); color: #fff; font: 800 13px/1.2 var(--body);
