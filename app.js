@@ -396,9 +396,9 @@
     const photos = c.photos || (c.photo ? [c.photo] : []);
     if (!photos.length) return "";
     const slides = photos.map((url, i) =>
-      '<a class="cpd__slide" href="' + esc(url) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
+      '<div class="cpd__slide">' +
       '<img src="' + esc(preview(url)) + '" alt="' + esc(c.name) + (photos.length > 1 ? " · " + (i + 1) : "") + '"' +
-      (i ? ' loading="lazy"' : "") + "></a>").join("");
+      (i ? ' loading="lazy"' : "") + "></div>").join("");
     return '<div class="cpd__gallery">' +
       '<div class="cpd__track">' + slides + "</div>" +
       (photos.length > 1 ? '<span class="cpd__count">1 / ' + photos.length + "</span>" : "") +
