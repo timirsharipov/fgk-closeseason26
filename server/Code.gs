@@ -428,8 +428,13 @@ function setPointPhoto_(body) {
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var link = "https://drive.google.com/file/d/" + file.getId() + "/view";
   return withLock_(function () {
+    // в объединённую ячейку запись молча пропадает - лучше сказать об этом
+    var range = t.sh.getRange(i + 2, t.col.photo + 1);
+    if (typeof range.isPartOfMerge === "function" && range.isPartOfMerge()) {
+      throw userError_("Ячейка «Фото» у точки " + id + " объединена с соседней: разъедини её в таблице");
+    }
     // новое фото добавляется к уже стоящим - на сайте их можно листать
-    var old = String(t.sh.getRange(i + 2, t.col.photo + 1).getValue() || "").trim();
+    var old = String(range.getValue() || "").trim();
     t.sh.getRange(i + 2, t.col.photo + 1).setValue(old ? old + "\n" + link : link);
     CacheService.getScriptCache().remove("public");
     return { id: id, photo: link, site: photoUrl_(link), count: (old ? old.split(/\s+/).length : 0) + 1 };
