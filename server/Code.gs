@@ -424,9 +424,13 @@ function setPointPhoto_(body) {
   if (i < 0 || t.col.photo < 0) throw userError_("Такой точки нет в таблице");
   var cell = t.get(t.rows[i], "photo");
   if (cell && typeof cell === "object") throw userError_("В ячейке «Фото» картинка: добавь фото в таблице или очисти ячейку");
-  var file = photoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), "image/jpeg", "точка " + id + ".jpg"));
+  // гифку (анимированный webp/gif) Диск в превью показывает одним кадром - помечаем её #anim
+  var anim = body.type === "webp" || body.type === "gif";
+  var ext = anim ? body.type : "jpg";
+  var mime = anim ? "image/" + body.type : "image/jpeg";
+  var file = photoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), mime, "точка " + id + "." + ext));
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  var link = "https://drive.google.com/file/d/" + file.getId() + "/view";
+  var link = "https://drive.google.com/file/d/" + file.getId() + "/view" + (anim ? "#anim" : "");
   return withLock_(function () {
     // в объединённую ячейку запись молча пропадает - лучше сказать об этом
     var range = t.sh.getRange(i + 2, t.col.photo + 1);
