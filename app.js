@@ -371,10 +371,7 @@
     const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
     const who = arrivals(id);
     $("cp-sheet-body").innerHTML =
-      (c.photo
-        ? '<a class="cpd__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
-          '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" onerror="this.parentNode.remove()"></a>'
-        : "") +
+      gallery(c) +
       '<div class="cpd__head">' +
         '<span class="cp__value">×' + c.value + "</span>" +
         "<div>" + (c.final ? '<span class="cp__flag">финиш</span>' : "") + "<h2>" + esc(c.name) + "</h2></div>" +
@@ -393,6 +390,29 @@
             '<span class="arrivals__time">' + fmtTime(x.at) + "</span></li>").join("") + "</ol>"
         : '<p class="cpd__empty">Пока никого.</p>'));
   }
+
+  // фото точки; если их несколько - листаются свайпом
+  function gallery(c) {
+    const photos = c.photos || (c.photo ? [c.photo] : []);
+    if (!photos.length) return "";
+    const slides = photos.map((url, i) =>
+      '<a class="cpd__slide" href="' + esc(url) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
+      '<img src="' + esc(preview(url)) + '" alt="' + esc(c.name) + (photos.length > 1 ? " · " + (i + 1) : "") + '"' +
+      (i ? ' loading="lazy"' : "") + "></a>").join("");
+    return '<div class="cpd__gallery">' +
+      '<div class="cpd__track">' + slides + "</div>" +
+      (photos.length > 1 ? '<span class="cpd__count">1 / ' + photos.length + "</span>" : "") +
+      "</div>";
+  }
+
+  $("cp-sheet-body").addEventListener("scroll", (e) => {
+    const track = e.target;
+    if (!track.classList || !track.classList.contains("cpd__track")) return;
+    const n = track.children.length;
+    const i = Math.round(track.scrollLeft / track.clientWidth) + 1;
+    const count = track.parentNode.querySelector(".cpd__count");
+    if (count) count.textContent = Math.min(i, n) + " / " + n;
+  }, true);
 
   // кнопка «Отметиться» на странице точки
   function checkinBlock(c) {

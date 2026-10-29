@@ -413,7 +413,7 @@ function setSetting_(body) {
 
 // Расклейка: записать точке координаты по месту, где стоит организатор
 // Фото точки, присланное не через таблицу: кладём на Диск с доступом по ссылке
-// и ставим ссылку в колонку «Фото» (сайт показывает её как картинку).
+// и добавляем ссылку в колонку «Фото» новой строкой (сайт показывает их галереей).
 function setPointPhoto_(body) {
   var data = String(body.image || "").replace(/^data:image\/[\w+.-]+;base64,/, "");
   if (!data) throw userError_("Нет фото");
@@ -422,13 +422,17 @@ function setPointPhoto_(body) {
   var i = -1;
   t.rows.forEach(function (r, k) { if (String(t.get(r, "id")).trim() === id) i = k; });
   if (i < 0 || t.col.photo < 0) throw userError_("Такой точки нет в таблице");
+  var cell = t.get(t.rows[i], "photo");
+  if (cell && typeof cell === "object") throw userError_("В ячейке «Фото» картинка: добавь фото в таблице или очисти ячейку");
   var file = photoFolder_().createFile(Utilities.newBlob(Utilities.base64Decode(data), "image/jpeg", "точка " + id + ".jpg"));
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var link = "https://drive.google.com/file/d/" + file.getId() + "/view";
   return withLock_(function () {
-    t.sh.getRange(i + 2, t.col.photo + 1).setValue(link);
+    // новое фото добавляется к уже стоящим - на сайте их можно листать
+    var old = String(t.sh.getRange(i + 2, t.col.photo + 1).getValue() || "").trim();
+    t.sh.getRange(i + 2, t.col.photo + 1).setValue(old ? old + "\n" + link : link);
     CacheService.getScriptCache().remove("public");
-    return { id: id, photo: link, site: photoUrl_(link) };
+    return { id: id, photo: link, site: photoUrl_(link), count: (old ? old.split(/\s+/).length : 0) + 1 };
   });
 }
 
@@ -504,7 +508,7 @@ function readPoints_() {
         value: Number(t.get(r, "value")) || 1,
         final: YES.test(String(t.get(r, "final")).trim()),
         description: String(t.get(r, "description") || "").trim(),
-        photo: photoUrl_(t.get(r, "photoSite")) || photoUrl_(t.get(r, "photo")),
+        photos: pointPhotos_(t, r),
       };
     });
 }
@@ -538,8 +542,23 @@ function parseCoords_(v) {
 function publicPoint_(p) {
   return {
     id: p.id, name: p.name, lat: p.lat, lng: p.lng, value: p.value, final: p.final,
-    description: p.description, photo: p.photo,
+    description: p.description, photo: p.photos[0] || "", photos: p.photos,
   };
+}
+
+// Фото точки: вставленное в ячейку (его копия на Диске - в «Фото для сайта»)
+// и/или ссылки в ячейке «Фото», по одной на строку. На сайте листаются.
+function pointPhotos_(t, r) {
+  var out = [];
+  var site = photoUrl_(t.get(r, "photoSite"));
+  if (site) out.push(site);
+  var cell = t.get(r, "photo");
+  if (cell && typeof cell === "object") return out;
+  String(cell || "").split(/\s+/).forEach(function (u) {
+    var url = photoUrl_(u);
+    if (url && out.indexOf(url) < 0) out.push(url);
+  });
+  return out;
 }
 
 // Ссылку «поделиться» из Google Диска превращаем в картинку, которую можно показать на сайте

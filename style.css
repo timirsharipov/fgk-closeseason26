@@ -498,8 +498,15 @@ h1, h2, h3 { margin: 0; }
   background: rgba(13,11,10,.75); color: var(--ink); font-size: 16px;
 }
 .cpd__close:focus-visible { outline: 2px solid var(--acid); }
-.cpd__photo { display: block; margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: var(--line); }
-.cpd__photo img { width: 100%; max-height: 52vh; object-fit: cover; }
+.cpd__gallery { position: relative; margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: var(--line); }
+.cpd__track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.cpd__track::-webkit-scrollbar { display: none; }
+.cpd__slide { flex: 0 0 100%; scroll-snap-align: start; }
+.cpd__slide img { display: block; width: 100%; height: min(52vh, 320px); object-fit: cover; }
+.cpd__count {
+  position: absolute; right: 10px; bottom: 10px; padding: 4px 10px; border-radius: 99px;
+  background: rgba(0, 0, 0, .6); color: #fff; font: 800 13px/1.2 var(--body);
+}
 .cpd__head { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; padding-right: 40px; }
 .cpd__head h2 { font: 800 20px/1.15 var(--head); text-transform: uppercase; }
 .cpd__desc { margin: 12px 0 0; color: var(--ink); font-size: 15px; line-height: 1.5; white-space: pre-line; }

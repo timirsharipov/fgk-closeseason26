@@ -104,6 +104,11 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(cps[0].description,'Под мостом, у третьей опоры');
   assert.equal(cps[0].photo,'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200');
   assert.equal(cps[1].photo,'https://example.com/p.jpg'); assert.equal(cps[2].photo,''); assert.equal(cps[1].description,'');
+  assert.deepEqual(cps[1].photos,['https://example.com/p.jpg']); assert.deepEqual(cps[2].photos,[]);
+  pts.data[2][6]='https://example.com/a.jpg\nhttps://example.com/b.jpg  https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view'; g4.cache.clear();
+  assert.deepEqual(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photos,
+    ['https://example.com/a.jpg','https://example.com/b.jpg','https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200'],'несколько ссылок - галерея');
+  pts.data[2][6]='https://example.com/p.jpg'; g4.cache.clear();
 
   // фото, вставленное прямо в ячейку
   const img={getContentUrl:()=>'https://lh3.googleusercontent.com/tmp-image'};
@@ -189,6 +194,8 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   r=post({action:'admin',op:'photo',key,id:'c1',image:'data:image/jpeg;base64,aGVsbG8='}); assert.match(r.photo,/drive\.google\.com\/file\/d\//); assert.match(r.site,/thumbnail\?id=/);
   g8.cache.clear(); assert.match(get(key).checkpoints.find(c=>c.id==='c1').photo,/thumbnail\?id=/);
   g8.ctx.refreshQr(); g8.cache.clear(); assert.match(get(key).checkpoints.find(c=>c.id==='c1').photo,/thumbnail\?id=/,'refresh фото не стирает');
+  r=post({action:'admin',op:'photo',key,id:'c1',image:'aGVsbG8='}); assert.equal(r.count,2,'второе фото добавляется');
+  g8.cache.clear(); const ph=get(key).checkpoints.find(c=>c.id==='c1').photos; assert.equal(ph.length,2); assert.ok(ph.every(u=>/thumbnail\?id=/.test(u)));
   assert.match(post({action:'admin',op:'photo',key,id:'nope',image:'aGVsbG8='}).error,/нет в таблице/);
 }
 
