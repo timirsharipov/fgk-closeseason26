@@ -223,8 +223,14 @@ h1, h2, h3 { margin: 0; }
 .field__hint { margin: -4px 0 10px; color: var(--muted); font-size: 14px; }
 .field__hint--pay { line-height: 1.7; }
 .field__hint--pay .copy { padding: 2px 8px; }
-.pay-nick-note { color: var(--ink); }
-.field__input + .field__error + .field__hint { margin: 10px 0 0; }
+.paynick {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--orange); background: rgba(255, 106, 19, .1);
+  color: var(--ink); font-weight: 800; font-size: 15px; line-height: 1.6;
+}
+.paynick .copy { padding: 2px 8px; }
+.paynick__empty { color: var(--muted); font-weight: 600; }
+.paynick--box { margin: 16px 0 0; }
 .field__input {
   display: flex; align-items: center;
   border: 1.5px solid var(--line);
@@ -329,6 +335,8 @@ h1, h2, h3 { margin: 0; }
 .paybox__refresh:disabled { opacity: .5; cursor: progress; }
 .paybox[data-state="paid"] .paybox__badge,
 .paybox[data-state="free"] .paybox__badge { background: var(--acid); color: #111; }
+.paybox[data-state="paid"] .paynick,
+.paybox[data-state="free"] .paynick,
 .paybox[data-state="paid"] .paybox__steps,
 .paybox[data-state="free"] .paybox__steps,
 .paybox[data-state="paid"] .paybox__refresh,

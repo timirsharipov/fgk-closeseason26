@@ -711,6 +711,7 @@
     const nick = cleanNick(form.telegram.value);
     const btn = $("form-nick");
     btn.hidden = !nick;
+    $("form-nick-empty").hidden = Boolean(nick);
     btn.textContent = "@" + nick;
     btn.dataset.copy = "@" + nick;
   }
