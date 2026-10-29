@@ -577,8 +577,8 @@ function photoUrl_(v) {
   if (!/^https?:\/\//.test(url)) return "";
   var m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{20,})/);
   if (!m) return url;
-  // гифка: превью Диска показало бы один кадр - отдаём файл целиком
-  if (/#anim$/.test(url)) return "https://drive.usercontent.google.com/download?id=" + m[1] + "&export=view";
+  // гифка: lh3 отдаёт её с анимацией и, в отличие от прямых ссылок Диска, не запрещает показ на чужом сайте
+  if (/#anim$/.test(url)) return "https://lh3.googleusercontent.com/d/" + m[1];
   return "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w1200";
 }
 
