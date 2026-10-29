@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Unbounded:wght@500;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=202610291300">
+  <link rel="stylesheet" href="style.css?v=202610291410">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -115,19 +115,9 @@
               <span>Ж</span>
             </label>
           </div>
-          <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное, в поле оплаты можно написать «бесплатно».</p>
+          <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное.</p>
           <p class="field__error" role="alert"></p>
         </fieldset>
-
-        <div class="field" data-field="payment">
-          <label class="field__label" for="payment">Оплата <span class="req">*</span></label>
-          <p class="paynick">В сообщении к переводу обязательно напиши свой ник <button type="button" class="copy" id="form-nick" data-copy="" hidden></button><span class="paynick__empty" id="form-nick-empty">из поля выше</span></p>
-          <p class="field__hint field__hint--pay">Перевод: <button type="button" class="copy" data-copy="+79966061200">+7 996 606-12-00</button> Сбербанк, Тимур.<br>Ниже укажи имя и банк, с которых переводишь, чтобы мы нашли платёж.</p>
-          <div class="field__input">
-            <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
-          </div>
-          <p class="field__error" role="alert"></p>
-        </div>
 
         <button class="submit" type="submit">
           <span class="submit__text">Гоу газ</span>
@@ -137,7 +127,7 @@
       </form>
 
       <section class="done" id="done" hidden tabindex="-1">
-        <h2>Ты в списке!</h2>
+        <h2 id="done-title">Ты в списке!</h2>
         <p id="done-text"><span data-start="date">30 октября</span> в <span data-start="time">20:00</span> здесь появятся точки маршрута. Не забудь шлем.</p>
 
         <div class="paybox" id="paybox" data-state="wait">
@@ -153,6 +143,14 @@
             <li>Сумма: <button type="button" class="copy" id="pay-sum-copy" data-copy="600">600 ₽</button></li>
             <li>В сообщении к переводу - ник, кнопка выше копирует его.</li>
           </ol>
+          <form class="paysource" id="paysource" novalidate>
+            <label class="paysource__label" for="pay-from">Перевёл? Напиши имя и банк, с которых переводил, чтобы мы нашли платёж</label>
+            <div class="field__input">
+              <input id="pay-from" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф">
+            </div>
+            <button class="submit submit--small" type="submit">Я перевёл</button>
+            <p class="field__error" id="pay-from-error" role="alert"></p>
+          </form>
           <p class="paybox__note" id="pay-note">Как только увидим перевод, отметим оплату, и статус здесь сменится.</p>
           <button type="button" class="paybox__refresh" id="pay-refresh">Обновить статус</button>
         </div>
@@ -253,8 +251,8 @@
     <p>FGK CloseSeason 26 · 18+</p>
   </footer>
 
-  <script src="config.js?v=202610291300"></script>
-  <script src="data.js?v=202610291300"></script>
-  <script src="app.js?v=202610291300"></script>
+  <script src="config.js?v=202610291410"></script>
+  <script src="data.js?v=202610291410"></script>
+  <script src="app.js?v=202610291410"></script>
 </body>
 </html>

@@ -242,14 +242,14 @@ h1, h2, h3 { margin: 0; }
 .field__input:focus-within { border-color: var(--orange); box-shadow: 0 0 0 4px rgba(255,106,19,.18); }
 .field__prefix { padding-left: 16px; color: var(--orange); font-weight: 800; font-size: 18px; }
 .field__input--prefixed input { padding-left: 4px; }
-.field input[type="text"] {
+.field input[type="text"], .paysource input[type="text"] {
   flex: 1; min-width: 0;
   padding: 15px 16px;
   border: 0; outline: 0;
   background: transparent; color: var(--ink);
   font: 600 17px/1.2 var(--body);
 }
-.field input::placeholder { color: #5f554c; }
+.field input::placeholder, .paysource input::placeholder { color: #5f554c; }
 
 .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .choice__item { position: relative; cursor: pointer; }
@@ -639,3 +639,8 @@ h1, h2, h3 { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* «с чьей карты перевёл» - на экране оплаты */
+.paysource { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+.paysource__label { color: var(--ink); font-weight: 800; font-size: 15px; line-height: 1.4; }
+.paysource .field__error { margin: 0; }

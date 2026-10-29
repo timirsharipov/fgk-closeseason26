@@ -75,6 +75,7 @@
         body: JSON.stringify(Object.assign({ action }, data)),
       }),
     register: (v) => remote.call("register", v),
+    paysource: (nick, payment) => remote.call("paysource", { nick, payment }),
     login: (nick) => remote.call("login", { nick }),
     scan: (v) => remote.call("scan", v),
     photo: (v) => remote.call("photo", v),
@@ -138,6 +139,11 @@
         const already = Boolean(regs[nick]);
         if (!already) regs[nick] = { amount: price(v.gender), paid: price(v.gender) === 0 };
         return { ok: true, nick, already, ...regs[nick] };
+      },
+      async paysource(nick, payment) {
+        const n = cleanNick(nick);
+        regs[n] = { ...(regs[n] || { amount: 600, paid: false }), source: payment };
+        return { ok: true, nick: n, ...regs[n] };
       },
       async me(nick) {
         const n = cleanNick(nick);
@@ -706,19 +712,8 @@
     field.querySelector(".field__error").textContent = message || "";
   }
 
-  // ник для сообщения к переводу - прямо рядом с номером, где люди и платят
-  function showFormNick() {
-    const nick = cleanNick(form.telegram.value);
-    const btn = $("form-nick");
-    btn.hidden = !nick;
-    $("form-nick-empty").hidden = Boolean(nick);
-    btn.textContent = "@" + nick;
-    btn.dataset.copy = "@" + nick;
-  }
-
   form.addEventListener("input", (e) => {
     if (e.target.name) setError(e.target.name, "");
-    if (e.target.name === "telegram") showFormNick();
     $("form-status").textContent = "";
   });
 
@@ -729,11 +724,10 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const checked = form.querySelector('input[name="gender"]:checked');
-    const v = { telegram: form.telegram.value, gender: checked ? checked.value : "", payment: form.payment.value.trim() };
+    const v = { telegram: form.telegram.value, gender: checked ? checked.value : "" };
     const errors = {
       telegram: !v.telegram.trim() ? REQUIRED : !cleanNick(v.telegram) ? "Ник в Telegram: латиница, цифры и _ (от 3 символов)" : "",
       gender: v.gender ? "" : REQUIRED,
-      payment: v.payment ? "" : REQUIRED,
     };
     Object.keys(errors).forEach((k) => setError(k, errors[k]));
     const firstInvalid = Object.keys(errors).find((k) => errors[k]);
@@ -763,7 +757,6 @@
   $("again").addEventListener("click", () => {
     form.reset();
     genderHint.hidden = true;
-    showFormNick();
     done.hidden = true;
     form.hidden = false;
     form.telegram.focus();
@@ -781,6 +774,7 @@
   function renderPayment(status) {
     payment = { amount: status.amount, paid: status.paid };
     const box = $("paybox");
+    const source = status.source || "";
     const free = status.amount === 0;
     box.dataset.state = free ? "free" : status.paid ? "paid" : "wait";
     $("pay-badge").textContent = free ? "бесплатно" : status.paid ? "оплачено ✓" : "ждём перевод";
@@ -789,11 +783,16 @@
     $("pay-sum-copy").dataset.copy = String(status.amount);
     $("pay-nick").textContent = "@" + status.nick;
     $("pay-nick").dataset.copy = "@" + status.nick;
+    $("done-title").textContent = free || status.paid ? "Ты в списке!" : "Осталось оплатить";
+    // «с чьей карты» спрашиваем, пока участник его не указал
+    $("paysource").hidden = free || status.paid || Boolean(source);
     $("pay-note").textContent = free
       ? "Для девушек участие бесплатное, платить ничего не нужно."
       : status.paid
         ? "Оплата подтверждена. Увидимся " + startPhrase() + "!"
-        : "Как только увидим перевод, отметим оплату, и статус здесь сменится.";
+        : source
+          ? "Перевод от: " + source + ". Как только увидим его, отметим оплату, и статус здесь сменится."
+          : "Как только увидим перевод, отметим оплату, и статус здесь сменится.";
   }
 
   async function loadMyStatus() {
@@ -808,6 +807,24 @@
       else render();
     } catch (err) { /* статус оплаты не критичен - покажем в следующий раз */ }
   }
+
+  $("paysource").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const value = $("pay-from").value.trim();
+    if (!value) return ($("pay-from-error").textContent = "Напиши имя и банк, с которых переводил");
+    const btn = e.target.querySelector("button");
+    btn.disabled = true;
+    try {
+      const res = await api.paysource(user.nick, value);
+      if (!res.ok) return ($("pay-from-error").textContent = res.error);
+      $("pay-from-error").textContent = "";
+      renderPayment(res);
+    } catch (err) {
+      $("pay-from-error").textContent = "Нет связи с сервером, попробуй ещё раз";
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   $("pay-refresh").addEventListener("click", async (e) => {
     e.target.disabled = true;

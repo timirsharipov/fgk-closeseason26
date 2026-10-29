@@ -21,15 +21,23 @@ reg=post({action:'register',telegram:'bob_1',gender:'М',payment:'Боб'});
 assert.equal(reg.ok,true); assert.equal(reg.amount,600); assert.equal(reg.paid,false);
 // цена до повышения
 change[1]=new Date(Date.now()+86400e3).toISOString();
+let r0;
 assert.equal(post({action:'register',telegram:'early_bird',gender:'М',payment:'x'}).amount,300);
+// оплата на втором экране: регистрация без источника, источник - отдельно
+r0=post({action:'register',telegram:'no_source',gender:'М'}); assert.equal(r0.ok,true); assert.equal(r0.source,'');
+assert.match(post({action:'paysource',nick:'no_source',payment:''}).error,/имя и банк/);
+assert.match(post({action:'paysource',nick:'ghost_x',payment:'Иван'}).error,/Не нашли/);
+r0=post({action:'paysource',nick:'@No_Source',payment:'Иван И., Т-Банк'}); assert.equal(r0.ok,true); assert.equal(r0.source,'Иван И., Т-Банк');
+assert.equal(S('Регистрации').data.find(r=>r[1]==='no_source')[3],'Иван И., Т-Банк');
+assert.equal(JSON.parse(ctx.doGet({parameter:{action:'me',nick:'no_source'}}).s).source,'Иван И., Т-Банк');
 // статус оплаты
 let me=JSON.parse(ctx.doGet({parameter:{action:'me',nick:'@bob_1'}}).s); assert.equal(me.paid,false); assert.equal(me.amount,600);
 S('Регистрации').data[2][5]=true;
 me=JSON.parse(ctx.doGet({parameter:{action:'me',nick:'bob_1'}}).s); assert.equal(me.paid,true);
 assert.equal(JSON.parse(ctx.doGet({parameter:{action:'me',nick:'nobody'}}).s).ok,false);
 assert.equal(post({action:'register',telegram:'blocked_guy',gender:'М',payment:'-'}).ok,true);
-S('Регистрации').data[4][6]='нет';
-assert.equal(S('Регистрации').data.length,5);
+S('Регистрации').data.find(r=>r[1]==='blocked_guy')[6]='нет';
+assert.equal(S('Регистрации').data.length,6);
 assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);

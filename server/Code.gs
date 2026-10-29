@@ -81,6 +81,7 @@ function doPost(e) {
     if (body.action === "login") return login_(body);
     if (body.action === "scan") return scan_(body);
     if (body.action === "photo") return photo_(body);
+    if (body.action === "paysource") return paySource_(body);
     if (body.action === "admin") return admin_(body);
     throw userError_("Неизвестное действие");
   });
@@ -141,13 +142,29 @@ function register_(body) {
   var payment = String(body.payment || "").trim().slice(0, 200);
   if (!nick) throw userError_("Проверь ник в Telegram: латиница, цифры и _");
   if (gender !== "М" && gender !== "Ж") throw userError_("Выбери пол");
-  if (!payment) throw userError_("Укажи, с чьей карты перевод");
 
   return withLock_(function () {
     var existing = findRegistration_(nick);
     if (existing) return status_(existing, { already: true });
     var amount = addRegistration_(s, new Date(), nick, gender, payment);
     return status_({ nick: nick, amount: amount, paid: amount === 0, blocked: false }, { already: false });
+  });
+}
+
+// После регистрации участник пишет, с чьей карты перевёл, - чтобы найти платёж
+function paySource_(body) {
+  var nick = cleanNick_(body.nick);
+  var payment = String(body.payment || "").trim().slice(0, 200);
+  if (!nick) throw userError_("Не нашли такой ник среди зарегистрированных");
+  if (!payment) throw userError_("Напиши имя и банк, с которых переводишь");
+  return withLock_(function () {
+    var rows = rows_("regs");
+    for (var i = 0; i < rows.length; i++) {
+      if (cleanNick_(rows[i][1]) !== nick) continue;
+      sheet_("regs").getRange(i + 2, 4).setValue(payment);
+      return status_(findRegistration_(nick), {});
+    }
+    throw userError_("Не нашли такой ник среди зарегистрированных");
   });
 }
 
@@ -182,7 +199,7 @@ function me_(raw) {
 }
 
 function status_(reg, extra) {
-  var out = { nick: reg.nick, amount: reg.amount, paid: reg.paid, blocked: reg.blocked };
+  var out = { nick: reg.nick, amount: reg.amount, paid: reg.paid, blocked: reg.blocked, source: reg.source || "" };
   for (var k in extra) out[k] = extra[k];
   return out;
 }
@@ -550,6 +567,7 @@ function findRegistration_(nick) {
     amount: Number(row[4]) || 0,
     paid: row[5] === true || YES.test(String(row[5]).trim()),
     blocked: /^(нет|no|0|false)$/i.test(String(row[6]).trim()),
+    source: String(row[3] || "").trim(),
   };
 }
 
