@@ -380,7 +380,8 @@
       (c.description ? '<p class="cpd__desc">' + linkify(c.description) + "</p>" : "") +
       '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
       checkinBlock(c) +
-      (!resultsOpen() ? "" :
+      // «Уже приехали»: в тестовом режиме до конца аллейката не показываем
+      (!resultsOpen() || (testKey && !raceEnded()) ? "" :
       '<h3 class="cpd__sub">Уже приехали' + (who.length ? " · " + who.length : "") + "</h3>" +
       (who.length
         ? '<ol class="arrivals">' + who.map((x) =>
