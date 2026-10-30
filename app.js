@@ -370,6 +370,7 @@
     const c = state.checkpoints.find((x) => x.id === id);
     if (!c) return closeCpSheet();
     const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
+    const coords = c.lat + ", " + c.lng;
     const who = arrivals(id);
     $("cp-sheet-body").innerHTML =
       gallery(c) +
@@ -379,7 +380,10 @@
       "</div>" +
       (c.final ? '<p class="cpd__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
       (c.description ? '<p class="cpd__desc">' + linkify(c.description) + "</p>" : "") +
-      '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
+      '<div class="cpd__links">' +
+        '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
+        '<button type="button" class="cpd__coords copy" data-copy="' + esc(coords) + '">Скопировать координаты</button>' +
+      '</div>' +
       checkinBlock(c) +
       // «Уже приехали»: в тестовом режиме до конца аллейката не показываем
       (!resultsOpen() || (testKey && !raceEnded()) ? "" :

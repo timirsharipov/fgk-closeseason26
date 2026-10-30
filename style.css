@@ -513,7 +513,9 @@ h1, h2, h3 { margin: 0; }
 .cpd__head h2 { font: 800 20px/1.15 var(--head); text-transform: uppercase; }
 .cpd__desc { margin: 12px 0 0; color: var(--ink); font-size: 15px; line-height: 1.5; white-space: pre-line; }
 .cpd__desc a { color: var(--orange); word-break: break-all; }
-.cpd__map { display: inline-block; margin-top: 12px; color: var(--orange); font-weight: 800; text-decoration: none; }
+.cpd__links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 12px; }
+.cpd__map { color: var(--orange); font-weight: 800; text-decoration: none; }
+.cpd__coords { color: var(--muted); font-size: 14px; }
 .cp__wait { color: var(--orange); font-weight: 800; }
 .cpd__checkin { margin-top: 18px; }
 .cpd__checkin .submit { width: 100%; }
