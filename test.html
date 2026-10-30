@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Тест аллейката · FGK CloseSeason 26</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root { color-scheme: dark; --bg:#0d0b0a; --card:#171311; --ink:#f3ece1; --muted:#a89c8c; --line:#342b26; --orange:#ff6a13; --acid:#c8ff2e; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(80% 50% at 50% 0,rgba(255,106,19,.18),transparent 70%),var(--bg); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+    main { width:min(760px,100%); margin:auto; padding:48px 18px 72px; }
+    .badge { display:inline-block; padding:6px 10px; border:1px solid var(--acid); border-radius:999px; color:var(--acid); font-weight:700; font-size:13px; }
+    h1 { margin:18px 0 10px; font-size:clamp(34px,8vw,64px); line-height:.95; text-transform:uppercase; }
+    .lead { color:var(--muted); font-size:18px; max-width:620px; }
+    .notice { margin:28px 0; padding:16px 18px; border-left:4px solid var(--acid); background:rgba(200,255,46,.08); }
+    section { margin-top:36px; }
+    h2 { margin:0 0 14px; font-size:22px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    a { min-height:116px; padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--card); color:var(--ink); text-decoration:none; transition:.15s ease; }
+    a:hover { border-color:var(--orange); transform:translateY(-2px); }
+    a strong { display:block; margin-bottom:6px; color:var(--orange); font-size:18px; }
+    a span { color:var(--muted); }
+    .qr strong { color:var(--acid); }
+    .back { display:inline-block; min-height:0; margin-top:38px; padding:12px 18px; }
+    @media (max-width:620px) { main{padding-top:30px}.grid{grid-template-columns:1fr}a{min-height:96px} }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="badge">ТЕСТОВАЯ СТРАНИЦА</span>
+    <h1>Проверка аллейката</h1>
+    <p class="lead">Выбери сценарий. Откроется копия сайта на демо-данных: рабочая таблица, регистрации и настоящий рейтинг не изменятся.</p>
+    <div class="notice"><b>Старт в тесте уже наступил.</b> Для QR-сценариев геолокация имитируется автоматически.</div>
+
+    <section>
+      <h2>Основные экраны</h2>
+      <div class="grid">
+        <a href="index.html?demo=reg"><strong>До старта</strong><span>Регистрация, таймер и информация о событии.</span></a>
+        <a href="index.html?demo=racer"><strong>Гонка идёт</strong><span>Список точек, карточки и состояние участника.</span></a>
+        <a href="index.html?demo=pay"><strong>После регистрации</strong><span>Сумма, реквизиты и статус оплаты.</span></a>
+        <a href="index.html?demo=results"><strong>Результаты</strong><span>Финальный рейтинг после окончания гонки.</span></a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Проверка QR</h2>
+      <div class="grid">
+        <a class="qr" href="index.html?demo=racer&amp;cp=c1&amp;k=demo"><strong>QR засчитан</strong><span>Участник уже вошёл и находится рядом с точкой.</span></a>
+        <a class="qr" href="index.html?demo=racer&amp;cp=c5&amp;k=demo&amp;far=1"><strong>QR далеко от точки</strong><span>Проверка сообщения об ошибке и отправки фото.</span></a>
+        <a class="qr" href="index.html?demo=guest&amp;cp=c2&amp;k=demo"><strong>QR без входа</strong><span>Сайт попросит войти, затем продолжит отметку.</span></a>
+        <a class="qr" href="index.html?demo=racer&amp;cp=fin&amp;k=demo"><strong>QR финиша</strong><span>Проверка последней точки и сообщения о финише.</span></a>
+      </div>
+    </section>
+
+    <a class="back" href="index.html">← На рабочий сайт</a>
+  </main>
+</body>
+</html>

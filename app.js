@@ -915,7 +915,11 @@
   /* ================= старт ================= */
 
   (async function init() {
-    if (DEMO && params.has("demo")) return applyDemo(params.get("demo"));
+    if (DEMO && params.has("demo")) {
+      await applyDemo(params.get("demo"));
+      if (activeQr) scan(activeQr.cp, activeQr.k, demo.fakePosition(activeQr.cp, params.has("far")));
+      return;
+    }
     const saved = store.get();
     if (saved && cleanNick(saved.nick)) user = { nick: saved.nick };
     if (DEMO) demo.setMode("reg");
