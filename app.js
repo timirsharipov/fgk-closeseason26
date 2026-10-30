@@ -30,6 +30,7 @@
   let clockOffset = 0; // серверное время − локальное
   let user = null; // { nick }
   let pendingScan = null; // отметка, начатая до входа
+  const activeQr = params.get("cp") && params.get("k") ? { cp: params.get("cp"), k: params.get("k") } : null;
   let myScans = []; // свои отметки: [[id точки, время]] — топ во время гонки скрыт
   let myPending = []; // точки, отправленные фото и ждущие проверки организатором
   let lastPos = null; // последняя геолокация - уходит вместе с фото, организатору для сверки
@@ -422,10 +423,13 @@
     const mine = user && myRow().scans.find((x) => x[0] === c.id);
     if (mine) return '<p class="cpd__status">✓ Точка взята в ' + fmtTime(mine[1]) + "</p>";
     const wait = myPending.includes(c.id);
+    const qr = activeQr && activeQr.cp === c.id ? activeQr.k : "";
     return '<div class="cpd__checkin">' +
       (wait ? '<p class="cpd__status cpd__status--wait">Фото на проверке у организаторов. Засчитается временем отправки.</p>' : "") +
-      '<button type="button" class="submit" data-checkin="' + esc(c.id) + '">' + (testKey ? "Проверить гео (тест)" : "Отметиться здесь") + "</button>" +
-      (testKey ? "" : '<button type="button" class="link-btn cpd__photo-btn" data-photo="' + esc(c.id) + '">Глушилки? Отправь фото с точки</button>') +
+      (qr
+        ? '<button type="button" class="submit" data-checkin="' + esc(c.id) + '">' + (testKey ? "Проверить гео (тест)" : "Отметиться по QR") + "</button>"
+        : '<p class="cpd__status cpd__status--wait">Чтобы отметиться, отсканируй QR-код на точке.</p>') +
+      (!testKey && qr ? '<button type="button" class="link-btn cpd__photo-btn" data-photo="' + esc(c.id) + '">Глушилки? Отправь фото с точки</button>' : "") +
       "</div>";
   }
 
@@ -454,8 +458,8 @@
     const b = e.target.closest("[data-checkin],[data-photo]");
     if (!b) return;
     closeCpSheet();
-    if (b.dataset.checkin) scan(b.dataset.checkin);
-    else pickPhoto(b.dataset.photo);
+    if (b.dataset.checkin) scan(b.dataset.checkin, activeQr && activeQr.k);
+    else pickPhoto(b.dataset.photo, activeQr && activeQr.k);
   });
   $("cp-sheet").addEventListener("click", (e) => { if (e.target === $("cp-sheet")) closeCpSheet(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && openCp) closeCpSheet(); });
@@ -548,7 +552,7 @@
 
   let testPos = null; // где стоял организатор при последнем тестовом скане
 
-  async function testScan(cp) {
+  async function testScan(cp, key) {
     const name = cpName(cp);
     showSheet("wait", name, "Определяем, где ты стоишь…", "Тест · геолокация", "📍");
     try {
@@ -558,7 +562,7 @@
     }
     let res;
     try {
-      res = await api.scan({ test: testKey, cp, lat: testPos.lat, lng: testPos.lng, accuracy: testPos.accuracy });
+      res = await api.scan({ test: testKey, cp, k: key, lat: testPos.lat, lng: testPos.lng, accuracy: testPos.accuracy });
     } catch (err) {
       return showSheet("far", name, "Нет связи с сервером.", "Тест · ошибка сети", "✗");
     }
@@ -604,13 +608,13 @@
     });
   }
 
-  async function scan(cp, fakePosition) {
-    if (testKey) return testScan(cp);
+  async function scan(cp, key, fakePosition) {
+    if (testKey) return testScan(cp, key);
     if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, отметки больше не принимаются.", "Финиш гонки", "⏱");
     if (!raceOn()) return showSheet("far", "Ещё рано", "Отметки засчитываются с момента старта.", "До старта", "⏳");
     const name = cpName(cp);
     if (!user) {
-      pendingScan = [cp, fakePosition];
+      pendingScan = [cp, key, fakePosition];
       return showSheet("far", name, "Войди ником из регистрации, и точка засчитается сразу после входа.", "Нужен вход", "@", "Войти");
     }
     pendingScan = null;
@@ -627,7 +631,7 @@
     showSheet("wait", name, "Отмечаем точку…", "Проверяем геолокацию…", "📍");
     let res;
     try {
-      res = await api.scan({ nick: user.nick, cp, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
+      res = await api.scan({ nick: user.nick, cp, k: key, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
     } catch (err) {
       return showSheet("far", name, "Нет связи с сервером. Проверь интернет и попробуй ещё раз.", "Ошибка сети", "✗");
     }
@@ -660,8 +664,9 @@
   /* ---------- отметка по фото ---------- */
 
   let photoCp = null;
+  let photoKey = null;
 
-  function pickPhoto(cp) {
+  function pickPhoto(cp, key) {
     if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, отметки больше не принимаются.", "Финиш гонки", "⏱");
     if (!raceOn()) return showSheet("far", "Ещё рано", "Отметки засчитываются с момента старта.", "До старта", "⏳");
     if (!user) {
@@ -669,13 +674,14 @@
       return showSheet("far", cpName(cp), "Сначала войди ником из регистрации, потом отправь фото.", "Нужен вход", "@", "Войти");
     }
     photoCp = cp;
+    photoKey = key;
     $("photo-input").value = "";
     $("photo-input").click(); // откроет камеру
   }
 
   $("scan-photo").addEventListener("click", (e) => {
     $("scan-sheet").hidden = true;
-    pickPhoto(e.currentTarget.dataset.cp);
+    pickPhoto(e.currentTarget.dataset.cp, activeQr && activeQr.k);
   });
 
   // ужимаем до 1600 px по длинной стороне: так фото уходит быстро даже на слабом интернете
@@ -707,7 +713,7 @@
     try {
       const image = await shrinkPhoto(file);
       const pos = lastPos || {};
-      res = await api.photo({ nick: user.nick, cp, image, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
+      res = await api.photo({ nick: user.nick, cp, k: photoKey, image, lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy });
     } catch (err) {
       return showSheet("far", name, "Фото не ушло. Проверь интернет и отправь ещё раз.", "Ошибка сети", "✗", null, cp);
     }
@@ -887,9 +893,9 @@
       signIn(res.nick);
       showDone(res, startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
     }
-    if (mode === "scan-ok") scan("c6", demo.fakePosition("c6"));
-    if (mode === "scan-far") scan("c5", demo.fakePosition("c5", true));
-    if (mode === "scan-guest") scan("c6", demo.fakePosition("c6"));
+    if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
+    if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
+    if (mode === "scan-guest") scan("c6", "demo", demo.fakePosition("c6"));
   }
 
   const demoNav = document.querySelector(".demo");
@@ -916,8 +922,8 @@
     if (testKey) $("testbar").hidden = false;
     await refresh();
     loadMyStatus();
-    // старые ссылки ?cp=… просто открывают точку
-    if (params.has("cp") && raceOn()) openCpSheet(params.get("cp"));
+    if (activeQr && raceOn()) scan(activeQr.cp, activeQr.k);
+    else if (params.has("cp") && raceOn()) openCpSheet(params.get("cp"));
   })();
 
   // во время гонки обновляем топ, до старта - только отсчёт

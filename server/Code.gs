@@ -5,7 +5,7 @@
  *   «Настройки»   - время старта, радиус засчёта, адрес сайта
  *   «Регистрации» - ники участников, сумма и галочка «Оплачено»
  *                   (колонка «Допуск»: «нет» - не пускать в гонку)
- *   «Точки»       - точки маршрута, их ценность, описание и фото
+ *   «Точки»       - точки маршрута, их ценность, секреты и ссылки для QR
  *   «Сканы»       - журнал всех отметок со статусом. Отметка по фото приходит
  *                   со статусом «проверить фото»: посмотрели фото, поставили «ok»
  *                   (засчитается временем отправки) или «отклонено»
@@ -25,7 +25,7 @@ var SHEETS = {
 
 var HEADERS = {
   regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
-  points: ["ID", "Название", "Координаты", "Ценность", "Финиш", "Описание", "Фото", "Фото для сайта"],
+  points: ["ID", "Название", "Координаты", "Ценность", "Финиш", "Описание", "Фото", "Фото для сайта", "Секрет", "Ссылка для QR", "QR"],
   scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус", "Фото"],
 };
 
@@ -33,6 +33,7 @@ var DEFAULT_SETTINGS = [
   ["Старт", "2026-10-30T20:00:00+03:00"],
   ["Конец", "2026-10-30T23:00:00+03:00"], // после этого отметки не принимаются
   ["Радиус, м", "150"],
+  ["Адрес сайта", "https://timirsharipov.github.io/fgk-closeseason26/"],
   ["Цена, ₽", "300"],
   ["Цена после повышения, ₽", "600"],
   ["Повышение цены", "2026-10-26T00:00:00+03:00"],
@@ -47,10 +48,8 @@ var P = {
   id: "ID", name: "Название", coords: "Координаты", value: "Ценность", final: "Финиш",
   description: "Описание",
   photo: "Фото", photoSite: "Фото для сайта",
+  secret: "Секрет", link: "Ссылка для QR", qr: "QR",
 };
-// остались от отметки по QR-кодам - setup их удаляет
-var OLD_POINT_COLUMNS = ["Секрет", "Ссылка для QR", "QR", "Фото QR", "Фото QR для сайта"];
-var OLD_SETTINGS = ["Адрес сайта"];
 var PHOTO_FOLDER = "FGK CloseSeason 26, фото точек";
 var CHECKIN_FOLDER = "FGK CloseSeason 26, фото с отметок"; // фото гонщиков, когда гео не сработало
 var PENDING = "проверить фото";
@@ -242,7 +241,7 @@ function scan_(body) {
       throw userError_(message);
     };
 
-    var c = checkRider_(s, nick, cpId, fail);
+    var c = checkRider_(s, nick, cpId, body.k, fail);
     if (c.already) return { already: true, cp: cpId, at: c.already.at };
     var point = c.point;
     var okScans = c.okScans;
@@ -268,7 +267,7 @@ function scan_(body) {
 
 // Общие проверки отметки: время гонки, регистрация, точка, финиш последним.
 // fail(point, статус, сообщение) пишет попытку в журнал и прерывает отметку.
-function checkRider_(s, nick, cpId, fail) {
+function checkRider_(s, nick, cpId, key, fail) {
   if (Date.now() < s.start) fail(null, "рано", "Отметки засчитываются с момента старта");
   if (Date.now() > s.end) fail(null, "после конца", "Аллейкат закончился, отметки больше не принимаются");
 
@@ -280,6 +279,7 @@ function checkRider_(s, nick, cpId, fail) {
   var points = readPoints_();
   var point = points.filter(function (p) { return p.id === cpId; })[0];
   if (!point) fail(null, "нет точки", "Такой точки нет");
+  if (!key || String(key) !== point.secret) fail(point, "неверный код", "QR-код не подошёл. Отсканируй код прямо на точке");
 
   var okScans = readScans_();
   var already = okScans.filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
@@ -312,7 +312,7 @@ function photo_(body) {
     sheet_("scans").appendRow([at, nick || String(body.nick || ""), cpId, 0, "", "", "фото: " + status, ""]);
     throw userError_(message);
   };
-  var c = checkRider_(s, nick, cpId, fail);
+  var c = checkRider_(s, nick, cpId, body.k, fail);
   if (c.already) return { already: true, cp: cpId, at: c.already.at };
 
   // сохраняем вне блокировки: загрузка на Диск небыстрая
@@ -353,6 +353,7 @@ function testScan_(s, body) {
       distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
   };
   if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
+  if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки: секрет не совпал"); }
   if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
   var hasCoords = isFinite(point.lat) && isFinite(point.lng);
   var distance = hasCoords ? distanceM_({ lat: lat, lng: lng }, point) : null;
@@ -472,6 +473,8 @@ function adminPoints_(s) {
       coords: String(t.get(r, "coords")).trim(),
       value: t.get(r, "value"),
       final: String(t.get(r, "final")).trim(),
+      secret: String(t.get(r, "secret")).trim(),
+      link: String(t.get(r, "link")).trim(),
       description: String(t.get(r, "description")).trim(),
       photo: photo && typeof photo === "object" ? "[фото в ячейке]" : String(photo || "").trim(),
       photoSite: String(t.get(r, "photoSite")).trim(),
@@ -493,6 +496,7 @@ function settings_() {
     start: start,
     end: parseTime_(map["Конец"]),
     radius: Number(map["Радиус, м"]) || 150,
+    site: String(map["Адрес сайта"] || "").trim(),
     priceEarly: Number(map["Цена, ₽"]) || 0,
     priceLate: Number(map["Цена после повышения, ₽"]) || Number(map["Цена, ₽"]) || 0,
     priceChange: isFinite(change) ? change : Infinity,
@@ -516,6 +520,7 @@ function readPoints_() {
         lng: c.lng,
         value: Number(t.get(r, "value")) || 1,
         final: YES.test(String(t.get(r, "final")).trim()),
+        secret: String(t.get(r, "secret")).trim(),
         description: String(t.get(r, "description") || "").trim(),
         photos: pointPhotos_(t, r),
       };
@@ -686,7 +691,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Аллейкат")
     .addItem("Первичная настройка", "setup")
-    .addItem("Обновить ID и фото точек", "refreshQr")
+    .addItem("Обновить ссылки и фото точек", "refreshQr")
     .addToUi();
 }
 
@@ -711,9 +716,6 @@ function setup() {
     st.getRange(st.getLastRow() + 1, 1, 1, 2).setNumberFormat("@").setValues([row]);
     st.getRange(st.getLastRow(), 1).setFontWeight("bold");
   });
-  for (var row = st.getLastRow(); row >= 1; row--) {
-    if (OLD_SETTINGS.indexOf(String(st.getRange(row, 1).getValue()).trim()) >= 0) st.deleteRow(row);
-  }
   var keyRow = st.getRange(1, 1, st.getLastRow(), 2).getValues()
     .map(function (r) { return String(r[0]).trim(); }).indexOf("Ключ администратора");
   if (keyRow >= 0 && !String(st.getRange(keyRow + 1, 2).getValue()).trim()) {
@@ -810,13 +812,6 @@ function migratePoints_(sh) {
     sh.deleteColumn(addr + 1);
     h = head();
   }
-  // колонки QR-кодов больше не нужны: удаляем справа налево, чтобы номера не съезжали
-  OLD_POINT_COLUMNS
-    .map(function (name) { return h.indexOf(name); })
-    .filter(function (i) { return i >= 0; })
-    .sort(function (a, b) { return b - a; })
-    .forEach(function (i) { sh.deleteColumn(i + 1); });
-  h = head();
   HEADERS.points.forEach(function (name) {
     if (h.indexOf(name) >= 0) return;
     var c = h.filter(String).length + 1;
@@ -825,11 +820,12 @@ function migratePoints_(sh) {
   });
 }
 /**
- * Дозаполняет пустые ID точек и выкладывает фото, вставленные прямо в ячейку «Фото»,
- * чтобы сайт мог их показать. Пишем только служебные колонки - то, что заполнил организатор, не трогаем.
- * (Имя функции осталось от QR-кодов: на него ссылается загрузчик в Apps Script.)
+ * Дозаполняет ID, секреты и ссылки точек и выкладывает фото,
+ * вставленные прямо в ячейку «Фото». Готовые QR в таблице не перезаписывает.
  */
 function refreshQr() {
+  var site = settings_().site.replace(/\/?$/, "/");
+  if (!site) throw userError_("В «Настройках» не заполнен «Адрес сайта»");
   var t = pointsTable_();
   var n = t.rows.length;
   if (n < 1) return;
@@ -851,9 +847,25 @@ function refreshQr() {
     if (t.col.id >= 0) r[t.col.id] = id;
     return id;
   }));
+  t = pointsTable_();
+  var secrets = t.rows.map(function (r) {
+    var secret = String(t.get(r, "secret")).trim();
+    var filled = String(t.get(r, "id")).trim();
+    return secret || (filled ? Utilities.getUuid().replace(/-/g, "").slice(0, 12) : "");
+  });
+  write = function (k, values) {
+    if (t.col[k] >= 0) t.sh.getRange(2, t.col[k] + 1, n, 1).setValues(values.map(function (v) { return [v]; }));
+  };
+  write("secret", secrets);
+  var links = t.rows.map(function (r, i) {
+    var id = String(t.get(r, "id")).trim();
+    return id ? site + "?cp=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(secrets[i]) : "";
+  });
+  write("link", links);
   write("photoSite", t.rows.map(function (r) { return syncPhoto_(t, r, "photo", "photoSite", ""); }));
 
   t.sh.setRowHeights(2, n, 120);
+  if (t.col.qr >= 0) t.sh.setColumnWidth(t.col.qr + 1, 130);
   warnFloatingPhotos_(t);
 }
 
@@ -869,7 +881,7 @@ function warnFloatingPhotos_(t) {
     SpreadsheetApp.getUi().alert(
       "Фото поверх ячеек не попадут на сайт (точки: " + ids.join(", ") + ").\n\n" +
       "Нажмите на фото → ⋮ → «Поместить изображение в выбранную ячейку», " +
-      "потом снова «Аллейкат → Обновить ID и фото точек»."
+      "потом снова «Аллейкат → Обновить ссылки и фото точек»."
     );
   } catch (e) { /* запуск не из таблицы - окно показать некуда */ }
 }
