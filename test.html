@@ -30,7 +30,7 @@
   <main>
     <span class="badge">ТЕСТОВАЯ СТРАНИЦА</span>
     <h1>Проверка аллейката</h1>
-    <p class="lead">Выбери сценарий. Откроется копия сайта на демо-данных: рабочая таблица, регистрации и настоящий рейтинг не изменятся.</p>
+    <p class="lead">Выбери сценарий. В тесте используются реальные настройки и точки из рабочей таблицы, но тестовый участник и его отметки изолированы: регистрации и настоящий рейтинг не изменятся.</p>
     <div class="notice"><b>Старт в тесте уже наступил.</b> Для QR-сценариев геолокация имитируется автоматически.</div>
 
     <section>
@@ -46,9 +46,9 @@
     <section>
       <h2>Проверка QR</h2>
       <div class="grid">
-        <a class="qr" href="index.html?demo=racer&amp;cp=c1&amp;k=demo"><strong>QR засчитан</strong><span>Участник уже вошёл и находится рядом с точкой.</span></a>
-        <a class="qr" href="index.html?demo=racer&amp;cp=c5&amp;k=demo&amp;far=1"><strong>QR далеко от точки</strong><span>Проверка сообщения об ошибке и отправки фото.</span></a>
-        <a class="qr" href="index.html?demo=guest&amp;cp=c2&amp;k=demo"><strong>QR без входа</strong><span>Сайт попросит войти, затем продолжит отметку.</span></a>
+        <a class="qr" href="index.html?demo=racer&amp;cp=p1&amp;k=demo"><strong>QR засчитан</strong><span>Участник уже вошёл и находится рядом с точкой «Куллар».</span></a>
+        <a class="qr" href="index.html?demo=racer&amp;cp=p5&amp;k=demo&amp;far=1"><strong>QR далеко от точки</strong><span>Проверка сообщения об ошибке на точке «Гараж AXL custom».</span></a>
+        <a class="qr" href="index.html?demo=guest&amp;cp=p2&amp;k=demo"><strong>QR без входа</strong><span>Сайт попросит войти перед точкой «Сквер Тукая».</span></a>
         <a class="qr" href="index.html?demo=racer&amp;cp=fin&amp;k=demo"><strong>QR финиша</strong><span>Проверка последней точки и сообщения о финише.</span></a>
       </div>
     </section>

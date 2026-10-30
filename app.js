@@ -121,7 +121,7 @@
       setMode(m) {
         mode = m;
         mine = m === "reg" || m === "pay" ? [] : R.demoUser.scans.map(([id, m2]) => [id, at(m2)]);
-        pending = m === "racer" ? ["c5"] : [];
+        pending = m === "racer" ? ["p5"] : [];
       },
       fakePosition(cpId, far) {
         const c = byId[cpId];
@@ -889,13 +889,13 @@
     await refresh();
     if (user && mode !== "pay") await loadMyStatus();
     if (mode === "pay") {
-      const res = await demo.register({ telegram: "night_rider", gender: "М" });
+      const res = await demo.register({ telegram: window.RACE.demoUser.nick, gender: "М" });
       signIn(res.nick);
       showDone(res, startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
     }
-    if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
-    if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
-    if (mode === "scan-guest") scan("c6", "demo", demo.fakePosition("c6"));
+    if (mode === "scan-ok") scan("p1", "demo", demo.fakePosition("p1"));
+    if (mode === "scan-far") scan("p5", "demo", demo.fakePosition("p5", true));
+    if (mode === "scan-guest") scan("p1", "demo", demo.fakePosition("p1"));
   }
 
   const demoNav = document.querySelector(".demo");
