@@ -202,7 +202,7 @@
 
   // время старта берём из таблицы («Настройки → Старт»), а не из текста страницы
   const startFmt = (opts) =>
-    new Date(state ? state.start : Date.parse("2026-10-30T20:00:00+03:00"))
+    new Date(state ? state.start : Date.parse("2026-10-30T21:00:00+03:00"))
       .toLocaleString("ru-RU", Object.assign({ timeZone: CFG.timezone || "Europe/Moscow" }, opts));
   const START_PARTS = {
     time: () => startFmt({ hour: "2-digit", minute: "2-digit" }),
