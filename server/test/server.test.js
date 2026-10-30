@@ -4,6 +4,8 @@ const assert=require('assert');const {load}=require('./gas-mock');
 const {ctx,sheets,cache}=load();
 ctx.setup();
 const S=n=>sheets[n];
+const secret=(sheet,row)=>row[sheet.data[0].indexOf('Секрет')];
+const col=(sheet,name)=>sheet.data[0].indexOf(name);
 const get=()=>JSON.parse(ctx.doGet({parameter:{action:'state'}}).s);
 const post=b=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
 const setStart=ms=>{S('Настройки').data[0][1]=new Date(ms).toISOString();cache.clear();};
@@ -42,7 +44,7 @@ assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);
 const pts=S('Точки').data.slice(1); // старый вид строки [.., .., .., lat, lng, .., .., secret] - чтобы не переписывать проверки ниже
-const old=r=>{const [la,ln]=r[2].split(',').map(Number);return [r[0],r[1],'',la,ln,r[3],r[4],r[5]];};
+const old=r=>{const [la,ln]=r[2].split(',').map(Number);return [r[0],r[1],'',la,ln,r[3],r[4],secret(S('Точки'),r)];};
 const [c1,c2,fin]=pts.map(old); 
 let r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:10}); assert.equal(r.ok,false); assert.match(r.error,/старта/);
 setStart(Date.now()-60e3);
@@ -84,18 +86,20 @@ assert.deepEqual(L[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в топе ви�
 
 
 // описание, фото и координаты точек; перестройка старых листов
-const NEW_HEAD=["ID","Название","Координаты","Ценность","Финиш","Описание","Фото","Фото для сайта"];
+const NEW_HEAD=["ID","Название","Координаты","Ценность","Финиш","Описание","Фото","Фото для сайта","Секрет","Ссылка для QR","QR"];
+const MIGRATED_HEAD=["ID","Название","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"];
 { const {load:l4}=require('./gas-mock'); const g4=l4();
   const pts=g4.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
   // самый первый вид листа: широта/долгота отдельно, адрес и колонки QR
   pts.data=[["ID","Название","Адрес","Широта","Долгота","Ценность","Финиш","Секрет","Ссылка для QR","QR"],["c1","Мост","Наб., 1",55.75,37.61,2,"","sec1","",""]];
   g4.ctx.setup();
-  assert.deepEqual(pts.data[0],NEW_HEAD);
-  assert.deepEqual(pts.data[1].slice(0,5),["c1","Мост","55.75, 37.61",2,""],'ценность на месте, QR удалены');
-  g4.ctx.setup(); assert.deepEqual(pts.data[0],NEW_HEAD,'повторный setup ничего не ломает');
-  pts.data[1][5]='Под мостом, у третьей опоры';
-  pts.data[1][6]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
-  pts.data.push(["c2","Б","55.765000, 37.598000",1,"","","https://example.com/p.jpg",""],["c3","В","55,7; 37,6",1,"да","","не ссылка",""]);
+  assert.deepEqual(pts.data[0].slice(0,MIGRATED_HEAD.length),MIGRATED_HEAD);
+  assert.deepEqual(pts.data[1].slice(0,5),["c1","Мост","55.75, 37.61",2,""],'ценность на месте, QR сохранены');
+  g4.ctx.setup(); assert.deepEqual(pts.data[0],MIGRATED_HEAD,'повторный setup ничего не ломает');
+  pts.data[1][col(pts,'Описание')]='Под мостом, у третьей опоры';
+  pts.data[1][col(pts,'Фото')]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
+  const point=(id,name,coords,value,final,photo)=>{const r=Array(pts.data[0].length).fill(''); r[col(pts,'ID')]=id; r[col(pts,'Название')]=name; r[col(pts,'Координаты')]=coords; r[col(pts,'Ценность')]=value; r[col(pts,'Финиш')]=final; r[col(pts,'Фото')]=photo; return r;};
+  pts.data.push(point("c2","Б","55.765000, 37.598000",1,"","https://example.com/p.jpg"),point("c3","В","55,7; 37,6",1,"да","не ссылка"));
   g4.ctx.refreshQr();
   g4.sheets['Настройки'].data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()-1000).toISOString();
   const cps=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints;
@@ -105,23 +109,23 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(cps[0].photo,'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200');
   assert.equal(cps[1].photo,'https://example.com/p.jpg'); assert.equal(cps[2].photo,''); assert.equal(cps[1].description,'');
   assert.deepEqual(cps[1].photos,['https://example.com/p.jpg']); assert.deepEqual(cps[2].photos,[]);
-  pts.data[2][6]='https://example.com/a.jpg\nhttps://example.com/b.jpg  https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view'; g4.cache.clear();
+  pts.data[2][col(pts,'Фото')]='https://example.com/a.jpg\nhttps://example.com/b.jpg  https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view'; g4.cache.clear();
   assert.deepEqual(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photos,
     ['https://example.com/a.jpg','https://example.com/b.jpg','https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200'],'несколько ссылок - галерея');
-  pts.data[2][6]='https://example.com/p.jpg'; g4.cache.clear();
+  pts.data[2][col(pts,'Фото')]='https://example.com/p.jpg'; g4.cache.clear();
 
   // фото, вставленное прямо в ячейку
   const img={getContentUrl:()=>'https://lh3.googleusercontent.com/tmp-image'};
-  pts.data[3][6]=img; pts.data[3][5]='описание'; g4.ctx.refreshQr();
+  pts.data[3][col(pts,'Фото')]=img; pts.data[3][col(pts,'Описание')]='описание'; g4.ctx.refreshQr();
   assert.equal(g4.drive.files.length,1); assert.equal(g4.drive.files[0].name,'точка c3');
-  assert.match(pts.data[3][7],/^https:\/\/drive\.google\.com\/file\/d\/file0+1\/view$/);
-  assert.equal(pts.data[3][6],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][5],'описание');
+  assert.match(pts.data[3][col(pts,'Фото для сайта')],/^https:\/\/drive\.google\.com\/file\/d\/file0+1\/view$/);
+  assert.equal(pts.data[3][col(pts,'Фото')],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][col(pts,'Описание')],'описание');
   g4.cache.clear(); let c3=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[2];
   assert.equal(c3.photo,'https://drive.google.com/thumbnail?id=file00000000000000000001&sz=w1200');
-  g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,1,'то же фото не перевыкладывается'); assert.match(pts.data[3][7],/file0+1\/view/);
+  g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,1,'то же фото не перевыкладывается'); assert.match(pts.data[3][col(pts,'Фото для сайта')],/file0+1\/view/);
   g4.drive.content['https://lh3.googleusercontent.com/tmp-image']='новое фото'; g4.ctx.refreshQr();
   assert.equal(g4.drive.files.length,2,'новое фото выкладывается'); assert.deepEqual(g4.drive.trashed,['file00000000000000000001']); assert.equal(g4.drive.folder,1);
-  pts.data[3][6]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][7],''); assert.equal(g4.drive.trashed.length,2);
+  pts.data[3][col(pts,'Фото')]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][col(pts,'Фото для сайта')],''); assert.equal(g4.drive.trashed.length,2);
   g4.cache.clear(); assert.equal(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photo,'https://example.com/p.jpg');
 
   // фото поверх ячеек - подсказка, в каких точках
@@ -136,10 +140,10 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
             ["fin","Клуб","55.7, 37.6",5,"да","secF","old","=IMAGE()","Вход со двора",img,"","",""]];
   g5.sheets['Настройки']=new (require('./gas-mock').Sheet)('Настройки'); g5.sheets['Настройки'].data=[["Старт","2026-10-30T20:00:00+03:00"],["Адрес сайта","https://x/"],["Радиус, м","150"]];
   g5.ctx.setup();
-  assert.deepEqual(pts.data[0],NEW_HEAD);
-  assert.deepEqual(pts.data[1].slice(0,6),["fin","Клуб","55.7, 37.6",5,"да","Вход со двора"]);
-  assert.equal(pts.data[1][6],img); assert.match(pts.data[1][7],/drive\.google\.com\/file\/d\//);
-  assert.ok(!g5.sheets['Настройки'].data.some(r=>r[0]==='Адрес сайта'),'«Адрес сайта» удалён');
+  assert.deepEqual(pts.data[0].slice(0,MIGRATED_HEAD.length),MIGRATED_HEAD);
+  assert.deepEqual(["ID","Название","Координаты","Ценность","Финиш","Описание"].map(h=>pts.data[1][col(pts,h)]),["fin","Клуб","55.7, 37.6",5,"да","Вход со двора"]);
+  assert.equal(pts.data[1][col(pts,'Фото')],img); assert.match(pts.data[1][col(pts,'Фото для сайта')],/drive\.google\.com\/file\/d\//);
+  assert.equal(g5.sheets['Настройки'].data.find(r=>r[0]==='Адрес сайта')[1],'https://x/','«Адрес сайта» сохранён для QR-ссылок');
   assert.equal(g5.sheets['Настройки'].data.find(r=>r[0]==='Радиус, м')[1],'150','остальные настройки на месте');
 }
 
@@ -159,7 +163,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   const call=b=>JSON.parse(g7.ctx.doPost({postData:{contents:JSON.stringify(Object.assign({action:'admin'},b))}}).s);
   assert.equal(call({op:'points'}).error,'Нет доступа'); assert.equal(call({op:'points',key:'wrong'}).error,'Нет доступа');
   const pts=g7.sheets['Точки'].data; pts[1][0]='';
-  const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(!('secret' in res.points[0]));
+  const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(res.points[0].secret,'секрет виден только в защищённом admin-ответе');
   assert.equal(res.points[2].id,'fin');
   assert.equal(call({op:'points',key}).points.length,3);
   g7.sheets['Настройки'].data=g7.sheets['Настройки'].data.filter(r=>r[0]!=='Очки за первое место');
@@ -179,10 +183,10 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   const st=get(key); assert.equal(st.open,true); assert.equal(st.test,true); assert.equal(st.checkpoints.length,3);
   const post=b=>JSON.parse(g8.ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
   const row=g8.sheets['Точки'].data[1]; const [la,ln]=row[2].split(',').map(Number);
-  let r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.0005,lng:ln,accuracy:8});
+  let r=post({action:'scan',test:key,cp:'c1',k:secret(g8.sheets['Точки'],row),lat:la+0.0005,lng:ln,accuracy:8});
   assert.equal(r.ok,true); assert.equal(r.inRadius,true); assert.equal(r.distance,56);
-  r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.01,lng:ln}); assert.equal(r.inRadius,false); assert.equal(r.distance,1112);
-  assert.match(post({action:'scan',test:'wrong',cp:'c1',k:row[5],lat:la,lng:ln}).error,/неверный ключ/);
+  r=post({action:'scan',test:key,cp:'c1',k:secret(g8.sheets['Точки'],row),lat:la+0.01,lng:ln}); assert.equal(r.inRadius,false); assert.equal(r.distance,1112);
+  assert.match(post({action:'scan',test:'wrong',cp:'c1',k:secret(g8.sheets['Точки'],row),lat:la,lng:ln}).error,/неверный ключ/);
   const scans=g8.sheets['Сканы'].data.slice(1); assert.deepEqual(scans.map(x=>x[6]),['тест: ok','тест: далеко']);
   assert.ok(scans.every(x=>x[1]==='(тест)'&&x[3]===0)); assert.deepEqual(get(key).leaderboard,[],'тест в топ не идёт');
   // записать координаты точки по месту
@@ -211,8 +215,8 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   st[1]=new Date(Date.now()-1000).toISOString();
   const row=id=>S9('Точки').data.find(r=>r[0]===id); const fin=row('fin'), c1=row('c1');
   const at=r=>r[2].split(',').map(Number);
-  let r=post({action:'scan',nick:'rider1',cp:'fin',k:fin[5],lat:at(fin)[0],lng:at(fin)[1]}); assert.equal(r.ok,true);
-  r=post({action:'scan',nick:'rider1',cp:'c1',k:c1[5],lat:at(c1)[0],lng:at(c1)[1]}); assert.match(r.error,/после него/);
+  let r=post({action:'scan',nick:'rider1',cp:'fin',k:secret(S9('Точки'),fin),lat:at(fin)[0],lng:at(fin)[1]}); assert.equal(r.ok,true);
+  r=post({action:'scan',nick:'rider1',cp:'c1',k:secret(S9('Точки'),c1),lat:at(c1)[0],lng:at(c1)[1]}); assert.match(r.error,/после него/);
   const K9=S9('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
   g9.cache.clear(); const lb=JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard;
   assert.deepEqual(lb.map(x=>[x.nick,x.score,x.finished]),[['rider1',50,true]]);
@@ -221,12 +225,12 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard[0].score,50);
   // гонщик видит свои отметки, но не топ; после конца топ открыт всем
   const me=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'rider1'}}).s); assert.deepEqual(me.scans.map(x=>x[0]),['fin']);
-  // отметка по фото: без QR и геолокации, ждёт проверки организатором
+  // отметка по фото после QR: без геолокации, ждёт проверки организатором
   post({action:'register',telegram:'jammed',gender:'М',payment:'x'}); // поздняя регистрация не пройдёт - старт уже был
   st[1]=new Date(Date.now()+3600e3).toISOString(); post({action:'register',telegram:'jammed',gender:'М',payment:'x'}); st[1]=new Date(Date.now()-1000).toISOString();
   assert.match(post({action:'photo',nick:'jammed',cp:'c1'}).error,/не дошло/);
   assert.match(post({action:'photo',nick:'ghost',cp:'c1',image:'aGVsbG8='}).error,/Войди/);
-  r=post({action:'photo',nick:'jammed',cp:'c1',image:'data:image/jpeg;base64,aGVsbG8=',lat:0,lng:0,accuracy:20}); assert.equal(r.ok,true); assert.equal(r.pending,true);
+  r=post({action:'photo',nick:'jammed',cp:'c1',k:secret(S9('Точки'),c1),image:'data:image/jpeg;base64,aGVsbG8=',lat:0,lng:0,accuracy:20}); assert.equal(r.ok,true); assert.equal(r.pending,true);
   const prow=S9('Сканы').data.at(-1); assert.equal(prow[6],'проверить фото'); assert.match(prow[7],/drive\.google\.com/); assert.equal(S9('Сканы').data[0][7],'Фото');
   assert.equal(String(g9.drive.files.at(-1).bytes),'hello');
   let jm=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'jammed'}}).s); assert.deepEqual(jm.pending,['c1']); assert.deepEqual(jm.scans,[]);
@@ -234,9 +238,9 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   prow[6]='ok'; g9.cache.clear();
   jm=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'jammed'}}).s); assert.deepEqual(jm.pending,[]); assert.deepEqual(jm.scans.map(x=>x[0]),['c1']);
   assert.ok(JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard.some(x=>x.nick==='jammed'),'после «ok» в топе');
-  assert.equal(post({action:'photo',nick:'jammed',cp:'c1',image:'aGVsbG8='}).already,true);
-  // обычная отметка теперь без секрета QR
-  const c2=row('c2'); r=post({action:'scan',nick:'jammed',cp:'c2',lat:at(c2)[0],lng:at(c2)[1],accuracy:5}); assert.equal(r.ok,true);
+  assert.equal(post({action:'photo',nick:'jammed',cp:'c1',k:secret(S9('Точки'),c1),image:'aGVsbG8='}).already,true);
+  // обычная отметка требует секрет из QR
+  const c2=row('c2'); r=post({action:'scan',nick:'jammed',cp:'c2',k:secret(S9('Точки'),c2),lat:at(c2)[0],lng:at(c2)[1],accuracy:5}); assert.equal(r.ok,true);
   assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard,undefined);
   S9('Настройки').data.find(r=>r[0]==='Конец')[1]=new Date(Date.now()-1).toISOString(); g9.cache.clear();
   const after=JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s); assert.equal(after.results,true); assert.equal(after.leaderboard[0].nick,'rider1');
@@ -252,9 +256,9 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   set('Старт',new Date(Date.now()-7200e3).toISOString()); set('Конец',new Date(Date.now()-1000).toISOString());
   const st=JSON.parse(g.ctx.doGet({parameter:{action:'state'}}).s); assert.ok(st.end<Date.now()); assert.equal(st.open,true);
   const c1=g.sheets['Точки'].data.find(r=>r[0]==='c1'); const [la,ln]=c1[2].split(',').map(Number);
-  assert.match(post({action:'scan',nick:'late_rider',cp:'c1',k:c1[5],lat:la,lng:ln}).error,/закончился/);
+  assert.match(post({action:'scan',nick:'late_rider',cp:'c1',k:secret(g.sheets['Точки'],c1),lat:la,lng:ln}).error,/закончился/);
   const key=g.sheets['Настройки'].data.find(r=>r[0]==='Ключ администратора')[1];
-  assert.equal(post({action:'scan',test:key,cp:'c1',k:c1[5],lat:la,lng:ln}).ok,true,'тест работает и после конца');
+  assert.equal(post({action:'scan',test:key,cp:'c1',k:secret(g.sheets['Точки'],c1),lat:la,lng:ln}).ok,true,'тест работает и после конца');
   set('Конец',''); assert.equal(JSON.parse(g.ctx.doGet({parameter:{action:'state'}}).s).end,null,'без конца - не ограничено');
 }
 
