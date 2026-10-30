@@ -520,6 +520,7 @@ h1, h2, h3 { margin: 0; }
 .cpd__checkin { margin-top: 18px; }
 .cpd__checkin .submit { width: 100%; }
 .cpd__status { margin: 18px 0 0; color: var(--acid); font-weight: 800; }
+.cpd__finish { display: inline-block; margin-top: 6px; color: var(--ink); font-weight: 600; }
 .cpd__status--wait { margin: 0 0 12px; color: var(--orange); font-weight: 600; font-size: 14px; }
 .cpd__photo-btn { display: block; margin: 14px auto 0; color: var(--muted); font-size: 14px; }
 .cpd__sub { margin: 20px 0 8px; font: 800 14px/1 var(--head); text-transform: uppercase; color: var(--muted); }

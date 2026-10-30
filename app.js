@@ -425,7 +425,8 @@
   function checkinBlock(c) {
     if (raceEnded() && !testKey) return "";
     const mine = user && myRow().scans.find((x) => x[0] === c.id);
-    if (mine) return '<p class="cpd__status">✓ Точка взята в ' + fmtTime(mine[1]) + "</p>";
+    if (mine) return '<p class="cpd__status">✓ Точка принята · ' + fmtTime(mine[1]) +
+      (c.final ? '<br><span class="cpd__finish">Финиш! Паркуй велик, внутри награждение и туса.</span>' : '') + "</p>";
     const wait = myPending.includes(c.id);
     const qr = activeQr && activeQr.cp === c.id ? activeQr.k : "";
     return '<div class="cpd__checkin">' +
@@ -439,6 +440,7 @@
 
   function openCpSheet(id) {
     openCp = id;
+    $("scan-sheet").hidden = true;
     renderCpSheet(id);
     $("cp-sheet").hidden = false;
     $("cp-sheet").querySelector(".sheet__card").focus();
@@ -647,14 +649,14 @@
         "Слишком далеко", "✗", null, cp);
     }
     if (!res.ok) return showSheet("far", name, esc(res.error), "Не засчитано", "✗", null, /геолокац/i.test(res.error || "") ? cp : null);
-    if (res.already) return showSheet("ok", name, "Эта точка у тебя уже есть.", "Взята в " + fmtTime(res.at), "✓");
+    if (res.already) {
+      await loadMyStatus();
+      return openCpSheet(cp);
+    }
 
     await refresh();
     await loadMyStatus();
-    const isFinal = (state.checkpoints.find((c) => c.id === cp) || {}).final;
-    showSheet("ok", name,
-      isFinal ? "Финиш! Паркуй велик, внутри награждение и туса." : "",
-      "Точка засчитана · " + fmtTime(res.at), "✓");
+    openCpSheet(cp);
   }
 
   $("scan-close").addEventListener("click", () => {
